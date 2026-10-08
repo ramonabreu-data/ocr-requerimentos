@@ -311,12 +311,17 @@ def reprocessar_erros(uid: str):
 
 
 @app.get("/lotes/{uid}/exportar", dependencies=Protegido)
-def exportar_lote(uid: str, formato: str = Query("csv", pattern="^(csv|xlsx)$")):
+def exportar_lote(uid: str, formato: str = Query("csv", pattern="^(csv|xlsx|json)$")):
     lote = _lote(uid)
     repo = repositorio()
     resumos = [r for r in repo.resumos(repo.uuids_do_lote(lote.uuid)) if r["status"] != "dividido"]
     docs = repo.obter_varios([r["uuid"] for r in sorted(resumos, key=lambda r: r["_ts"])])
     nome = f"lote-{lote.uuid[:8]}"
+    if formato == "json":  # os JSONs dos documentos, como estão gravados agora
+        corpo = '{"lote": ' + lote.model_dump_json() + ', "documentos": [' + ",".join(
+            d.model_dump_json() for d in docs) + "]}"
+        return Response(corpo, media_type="application/json",
+                        headers={"Content-Disposition": f'attachment; filename="{nome}.json"', "Cache-Control": "no-store"})
     if formato == "xlsx":
         return Response(exportacao.para_xlsx(docs),
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -406,10 +411,12 @@ def obter_documento(uid: str):
 
 @app.get("/documentos/{uid}/json", dependencies=Protegido)
 def baixar_json(uid: str):
-    """O arquivo JSON do documento, como está gravado no armazenamento."""
+    """O arquivo JSON do documento como está gravado agora (sempre lido do armazenamento, sem cache)."""
     d = _doc(uid)
+    versao = f"-v{d.requerimento.versao}" if d.requerimento else ""
     return Response(d.model_dump_json(indent=2), media_type="application/json",
-                    headers={"Content-Disposition": disposicao(f"{d.uuid}.json", "attachment")})
+                    headers={"Content-Disposition": disposicao(f"{d.uuid}{versao}.json", "attachment"),
+                             "Cache-Control": "no-store"})
 
 
 @app.get("/documentos/{uid}/arquivo", dependencies=Protegido)

@@ -68,14 +68,15 @@ export const api = {
   lote: (uuid: string) => pedir<LoteDetalhe>(`/lotes/${uuid}`),
   reprocessarErros: (uuid: string) =>
     pedir<{ reenfileirados: number }>(`/lotes/${uuid}/reprocessar-erros`, { method: "POST" }),
-  exportarUrl: (uuid: string, formato: "csv" | "xlsx") => `${BASE}/lotes/${uuid}/exportar?formato=${formato}`,
+  exportarUrl: (uuid: string, formato: "csv" | "xlsx" | "json") => `${BASE}/lotes/${uuid}/exportar?formato=${formato}`,
   revisao: () => pedir<{ total: number; itens: DocumentoResumo[] }>("/revisao"),
   documentos: (params: Record<string, string>) =>
     pedir<{ total: number; itens: DocumentoResumo[] }>(`/documentos?${new URLSearchParams(params)}`),
   documento: (uuid: string) => pedir<DocumentoDetalhe>(`/documentos/${uuid}`),
   imagemUrl: (uuid: string, pagina: number) => `${BASE}/documentos/${uuid}/paginas/${pagina}/imagem`,
   arquivoUrl: (uuid: string) => `${BASE}/documentos/${uuid}/arquivo`,
-  jsonUrl: (uuid: string) => `${BASE}/documentos/${uuid}/json`,
+  // a versão na URL garante que o navegador baixe o arquivo gravado mais recente
+  jsonUrl: (uuid: string, versao?: number) => `${BASE}/documentos/${uuid}/json${versao ? `?v=${versao}` : ""}`,
   reprocessar: (uuid: string) => pedir<DocumentoResumo>(`/documentos/${uuid}/reprocessar`, { method: "POST" }),
   corrigir: (uuid: string, corpo: CorpoCorrecao) =>
     pedir<DocumentoDetalhe>(`/documentos/${uuid}/correcoes`, json(corpo, "PATCH")),

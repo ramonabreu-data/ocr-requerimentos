@@ -258,12 +258,12 @@ de propósito, para passar pelas regras do próprio Django.
 | `POST /lotes` | envia vários arquivos e/ou ZIPs; informa duplicados (que passam a fazer parte do lote, sem nova leitura) e formatos não suportados |
 | `GET /lotes`, `GET /lotes/{uuid}` | lista e detalhe com documentos e contadores |
 | `POST /lotes/{uuid}/reprocessar-erros` | devolve à fila só os que deram erro |
-| `GET /lotes/{uuid}/exportar?formato=csv\|xlsx` | planilha do lote (CSV com `;` e BOM para Excel) |
+| `GET /lotes/{uuid}/exportar?formato=csv\|xlsx\|json` | planilha do lote (CSV com `;` e BOM para Excel) ou os JSONs de todos os documentos, como estão gravados |
 | `GET /documentos?status=&busca=` e `GET /revisao` | listas e fila de revisão; `busca` acha CPF/CNPJ com ou sem máscara |
 | `GET /documentos?requerente=&procedimento=&municipio=&data_de=&data_ate=&campo_data=&pagina=&tamanho=` | filtros da lista de requerimentos, combinados com E: requerente sem diferenciar maiúsculas e acentos; período inclusivo pela data do documento (`campo_data=documento`, padrão) ou de gravação (`gravacao`, dia no fuso do Piauí) |
 | `GET /filtros` | procedimentos e municípios presentes nos requerimentos gravados, com a quantidade de cada |
 | `GET /documentos/{uuid}` | campos com valor lido, normalizado, confiança, leitura original do OCR, página e caixa |
-| `GET /documentos/{uuid}/json` | o arquivo JSON do requerimento, como está gravado no bucket |
+| `GET /documentos/{uuid}/json` | o arquivo JSON do requerimento, como está gravado agora no bucket (sem cache; o nome traz a versão) |
 | `GET /documentos/{uuid}/arquivo`, `/paginas/{n}/imagem` | original e página corrigida |
 | `PATCH /documentos/{uuid}/correcoes` | corrige campos, finalidades e tabela de irrigação; revalida e audita. Com `versao` (de `requerimento.versao`), 409 se outro gravou antes |
 | `POST /documentos/{uuid}/validar` | valida (`forcar` + `justificativa` quando há pendências; `versao` como nas correções) |

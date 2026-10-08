@@ -231,11 +231,16 @@ export default function Conferencia() {
         <a className="botao botao--secundario" href={api.arquivoUrl(doc.uuid)} target="_blank" rel="noreferrer">
           Abrir original
         </a>
-        {doc.requerimento && (
-          <a className="botao botao--secundario" href={api.jsonUrl(doc.uuid)} download>
-            Baixar JSON
-          </a>
-        )}
+        {doc.requerimento &&
+          (sujo ? (
+            <button className="botao botao--secundario" disabled title="Salve as correções para incluí-las no JSON">
+              Baixar JSON (salve antes)
+            </button>
+          ) : (
+            <a className="botao botao--secundario" href={api.jsonUrl(doc.uuid, doc.requerimento.versao)} download>
+              Baixar JSON
+            </a>
+          ))}
         {!EM_ANDAMENTO.has(doc.status) && doc.status !== "validado" && (
           <button className="botao botao--secundario" onClick={reprocessar}>
             Ler de novo

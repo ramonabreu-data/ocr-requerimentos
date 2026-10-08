@@ -56,6 +56,9 @@ export default function Lote() {
           <a className="botao botao--secundario" href={api.exportarUrl(id, "csv")}>
             Baixar CSV
           </a>
+          <a className="botao botao--secundario" href={api.exportarUrl(id, "json")}>
+            Baixar JSON
+          </a>
           {lote.com_erro > 0 && (
             <button className="botao" onClick={reprocessar}>
               {lote.com_erro === 1 ? "Ler de novo o documento com erro" : `Ler de novo os ${lote.com_erro} com erro`}

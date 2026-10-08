@@ -172,6 +172,20 @@ def test_ct50_exportacao(cliente, pdf_exemplo):
     wb = openpyxl.load_workbook(io.BytesIO(x.content))
     assert wb.sheetnames == ["Requerimentos", "Irrigação", "Detalhes das finalidades"]
     assert wb["Irrigação"].max_row == 7  # cabeçalho + 3 + 3
+    js = cliente.get(f"/lotes/{lote['uuid']}/exportar?formato=json")
+    assert js.status_code == 200 and js.headers["cache-control"] == "no-store"
+    assert js.json()["lote"]["uuid"] == lote["uuid"] and len(js.json()["documentos"]) == 2
+
+
+def test_json_baixado_reflete_a_ultima_gravacao(cliente, pdf_exemplo):
+    uid = _enviar(cliente, pdf_exemplo).json()["uuid"]
+    antes = cliente.get(f"/documentos/{uid}/json")
+    assert antes.headers["cache-control"] == "no-store"
+    cliente.patch(f"/documentos/{uid}/correcoes", json={"campos": {"localidade": "Sede"}})
+    depois = cliente.get(f"/documentos/{uid}/json")
+    v = depois.json()["requerimento"]["versao"]
+    assert v == antes.json()["requerimento"]["versao"] + 1 and depois.json()["requerimento"]["localidade"] == "Sede"
+    assert f"-v{v}.json" in depois.headers["content-disposition"]
 
 
 def test_ct51_api_key(cliente, monkeypatch):
