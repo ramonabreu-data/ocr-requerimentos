@@ -92,6 +92,16 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-109 | Carga sintética (450 documentos, 3 lotes) | `carga_sintetica` | totais e contadores coerentes |
 | CT-110 | Validados e pendentes com correções | `acuracia` | só os validados contam; campos incluídos na revisão contam como não lidos; faixas de confiança corretas |
 
+## 3c. Publicação para o SIGA (sem banco: "bucket do SIGA" numa pasta temporária)
+
+| ID | Dado | Quando | Então |
+|---|---|---|---|
+| CT-111 | Requerimento validado com pendências e campo corrigido | `json_siga` | formulário consolidado, campo com `valor_final` e `leitura_original_ocr`, justificativa e pendências da validação; sem posição/texto do OCR |
+| CT-112 | Documento validado e depois corrigido | `salvar` | publicado no bucket do SIGA ao validar; removido quando volta a pendente; não validado nunca vai |
+| CT-113 | Dois validados e um em revisão | `consolidado` / `gravar_consolidado` | só os validados, do mais antigo ao mais novo; arquivo gravado com o mesmo conteúdo |
+| CT-114 | Nenhum validado; cinco em blocos de 2 | `consolidado` | JSON válido com `total` 0; depois os 5, na ordem |
+| CT-115 | Publicação desligada / documento inexistente | `publicar_documento` | nada é gravado; inexistente é retirado do destino |
+
 ## 4. Pasta monitorada
 
 | ID | Dado | Quando | Então |
@@ -117,8 +127,11 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 08/10/2026, depois da troca do banco pelos JSONs no bucket. Ambiente: Python 3.12, Tesseract 5 (`por`),
 Redis em memória (fakeredis) nos testes, PostgreSQL 16 + PostGIS 3.4 com o stub do SIGA, Node 22.
 
-- `pytest` com `TEST_DATABASE_URL`: **141 passaram, 0 falharam**. Sem banco: 104 passam (unitários,
-  extração e os 11 do repositório de JSON) e os 37 de integração com o SIGA são pulados.
+- `pytest` com `TEST_DATABASE_URL`: **147 passaram, 0 falharam** (inclui os 5 da publicação para o
+  SIGA). Sem banco, os 38 de integração com o SIGA são pulados.
+- Publicação conferida na stack de desenvolvimento: validar um documento grava
+  `requerimentos/{uuid}.json` no bucket `siga` do MinIO, o `requerimentos.json` aparece 60 s depois e
+  o botão "JSON consolidado" baixa o mesmo conteúdo.
 - Conferido à parte com MinIO e Redis reais: envio de lote com PDF dividido, correção, 409 com versão
   antiga, validação, JSON no bucket com a leitura original preservada, 5 versões do JSON guardadas pelo
   versionamento do bucket e índice reconstruído idêntico depois de apagar o Redis.

@@ -80,6 +80,15 @@ export default function Navegacao({ logo }: { logo: string | null }) {
                 ) : null}
               </Link>
             ))}
+            <a
+              href={api.jsonConsolidadoUrl}
+              download
+              className="nav__acao"
+              title="Todos os requerimentos validados, com os dados do formulário atualizados (padrão do bucket do SIGA)"
+            >
+              <Icone nome="baixar" />
+              JSON consolidado
+            </a>
           </div>
         </nav>
       </header>

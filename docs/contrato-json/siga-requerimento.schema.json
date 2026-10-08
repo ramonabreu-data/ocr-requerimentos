@@ -1,0 +1,804 @@
+{
+  "$defs": {
+    "CampoRastreado": {
+      "additionalProperties": false,
+      "properties": {
+        "campo": {
+          "title": "Campo",
+          "type": "string"
+        },
+        "indice": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Posição em listas (finalidade, linha da irrigação, item de detalhe).",
+          "title": "Indice"
+        },
+        "valor_final": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Valor final do campo (lido pelo OCR ou corrigido na revisão).",
+          "title": "Valor Final"
+        },
+        "confianca_final": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Confiança do valor final, 0–100; 100 quando corrigido à mão.",
+          "title": "Confianca Final"
+        },
+        "corrigido_manualmente": {
+          "title": "Corrigido Manualmente",
+          "type": "boolean"
+        },
+        "leitura_original_ocr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeituraOriginalOcr"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "O que o OCR leu, antes da revisão; nulo quando o campo foi incluído na revisão."
+        }
+      },
+      "required": [
+        "campo",
+        "valor_final",
+        "confianca_final",
+        "corrigido_manualmente",
+        "leitura_original_ocr"
+      ],
+      "title": "CampoRastreado",
+      "type": "object"
+    },
+    "FinalidadeSiga": {
+      "additionalProperties": false,
+      "properties": {
+        "nome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Nome"
+        },
+        "id_siga": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "outorga_tipofinalidadeuso.id no SIGA.",
+          "title": "Id Siga"
+        },
+        "chave": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identificador da finalidade no formulário (ex.: criacao_animal).",
+          "title": "Chave"
+        },
+        "detalhes": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Dados próprios da finalidade, já normalizados.",
+          "title": "Detalhes"
+        }
+      },
+      "required": [
+        "nome"
+      ],
+      "title": "FinalidadeSiga",
+      "type": "object"
+    },
+    "Formulario": {
+      "additionalProperties": false,
+      "description": "Os dados do formulário do requerimento, consolidados: valor final de cada campo.",
+      "properties": {
+        "requerente": {
+          "$ref": "#/$defs/Requerente"
+        },
+        "procedimento": {
+          "$ref": "#/$defs/RefSiga"
+        },
+        "tipo_intervencao": {
+          "$ref": "#/$defs/RefSiga"
+        },
+        "localizacao": {
+          "$ref": "#/$defs/Localizacao"
+        },
+        "finalidades": {
+          "items": {
+            "$ref": "#/$defs/FinalidadeSiga"
+          },
+          "title": "Finalidades",
+          "type": "array"
+        },
+        "irrigacao": {
+          "items": {
+            "$ref": "#/$defs/LinhaIrrigacaoSiga"
+          },
+          "title": "Irrigacao",
+          "type": "array"
+        },
+        "descricao_usos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Descricao Usos"
+        },
+        "assinante_nome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Assinante Nome"
+        },
+        "data_documento": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data Documento"
+        }
+      },
+      "required": [
+        "requerente",
+        "procedimento",
+        "tipo_intervencao",
+        "localizacao",
+        "finalidades",
+        "irrigacao",
+        "descricao_usos",
+        "assinante_nome",
+        "data_documento"
+      ],
+      "title": "Formulario",
+      "type": "object"
+    },
+    "LeituraOriginalOcr": {
+      "additionalProperties": false,
+      "description": "O que o OCR leu neste campo na última leitura do documento, antes de qualquer correção manual.\nNão muda quando o revisor corrige o campo: é a base das análises de acurácia.",
+      "properties": {
+        "valor_lido": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Texto lido pelo OCR (ou do PDF com texto), sem correção.",
+          "title": "Valor Lido"
+        },
+        "confianca_ocr": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Confiança (0–100) da leitura pelo OCR.",
+          "title": "Confianca Ocr"
+        }
+      },
+      "required": [
+        "valor_lido",
+        "confianca_ocr"
+      ],
+      "title": "LeituraOriginalOcr",
+      "type": "object"
+    },
+    "LinhaIrrigacaoSiga": {
+      "additionalProperties": false,
+      "properties": {
+        "ordem": {
+          "title": "Ordem",
+          "type": "integer"
+        },
+        "sistema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sistema"
+        },
+        "area_ha": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Area Ha"
+        },
+        "cultura": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cultura"
+        }
+      },
+      "required": [
+        "ordem",
+        "sistema",
+        "area_ha",
+        "cultura"
+      ],
+      "title": "LinhaIrrigacaoSiga",
+      "type": "object"
+    },
+    "Localizacao": {
+      "additionalProperties": false,
+      "properties": {
+        "municipio": {
+          "$ref": "#/$defs/RefSiga"
+        },
+        "localidade": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Localidade"
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Graus decimais (negativo = Sul).",
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Graus decimais (negativo = Oeste).",
+          "title": "Longitude"
+        },
+        "srid": {
+          "default": 4674,
+          "description": "4674 = SIRGAS 2000.",
+          "title": "Srid",
+          "type": "integer"
+        },
+        "latitude_como_escrita": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Coordenada como está no documento (graus, minutos, segundos).",
+          "title": "Latitude Como Escrita"
+        },
+        "longitude_como_escrita": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Longitude Como Escrita"
+        }
+      },
+      "required": [
+        "municipio",
+        "localidade",
+        "latitude",
+        "longitude",
+        "latitude_como_escrita",
+        "longitude_como_escrita"
+      ],
+      "title": "Localizacao",
+      "type": "object"
+    },
+    "Origem": {
+      "additionalProperties": false,
+      "properties": {
+        "documento_uuid": {
+          "title": "Documento Uuid",
+          "type": "string"
+        },
+        "arquivo_nome": {
+          "title": "Arquivo Nome",
+          "type": "string"
+        },
+        "arquivo_sha256": {
+          "title": "Arquivo Sha256",
+          "type": "string"
+        },
+        "documento_pai_uuid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Arquivo com vários requerimentos de onde esta parte saiu.",
+          "title": "Documento Pai Uuid"
+        },
+        "pagina_inicial": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pagina Inicial"
+        },
+        "assinatura": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "digital | manuscrita | ausente | indeterminada",
+          "title": "Assinatura"
+        },
+        "processo_uuid_qrcode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Processo do SIGA lido no QR code do PDF, se houver.",
+          "title": "Processo Uuid Qrcode"
+        },
+        "processo_id_qrcode": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Processo Id Qrcode"
+        },
+        "versao_pipeline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Versão do OCR que fez a leitura.",
+          "title": "Versao Pipeline"
+        }
+      },
+      "required": [
+        "documento_uuid",
+        "arquivo_nome",
+        "arquivo_sha256"
+      ],
+      "title": "Origem",
+      "type": "object"
+    },
+    "RefSiga": {
+      "additionalProperties": false,
+      "properties": {
+        "nome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Texto final do campo (como no formulário, corrigido se preciso).",
+          "title": "Nome"
+        },
+        "id_siga": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Id do registro correspondente no SIGA, quando encontrado.",
+          "title": "Id Siga"
+        }
+      },
+      "required": [
+        "nome"
+      ],
+      "title": "RefSiga",
+      "type": "object"
+    },
+    "Requerente": {
+      "additionalProperties": false,
+      "properties": {
+        "nome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Nome"
+        },
+        "cpf_cnpj": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Com máscara: 000.000.000-00 ou 00.000.000/0000-00.",
+          "title": "Cpf Cnpj"
+        },
+        "tipo_pessoa": {
+          "anyOf": [
+            {
+              "enum": [
+                "F",
+                "J"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "F = física, J = jurídica.",
+          "title": "Tipo Pessoa"
+        },
+        "id_siga": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "core_pessoa.id no SIGA.",
+          "title": "Id Siga"
+        }
+      },
+      "required": [
+        "nome",
+        "cpf_cnpj",
+        "tipo_pessoa"
+      ],
+      "title": "Requerente",
+      "type": "object"
+    },
+    "Revisao": {
+      "additionalProperties": false,
+      "description": "Uma entrada do histórico. `tipo`:\n- correcao: o revisor mudou `campo` de `valor_anterior` para `valor_novo`;\n- validacao_com_pendencias: validado mesmo com pendências; `valor_anterior` = pendências na hora,\n  `valor_novo` = justificativa;\n- reprocessamento: o documento foi lido de novo e as correções manuais foram reaplicadas.",
+      "properties": {
+        "em": {
+          "format": "date-time",
+          "title": "Em",
+          "type": "string"
+        },
+        "usuario_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usuario Id"
+        },
+        "tipo": {
+          "enum": [
+            "correcao",
+            "validacao_com_pendencias",
+            "reprocessamento"
+          ],
+          "title": "Tipo",
+          "type": "string"
+        },
+        "campo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Campo"
+        },
+        "valor_anterior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valor Anterior"
+        },
+        "valor_novo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valor Novo"
+        }
+      },
+      "required": [
+        "tipo"
+      ],
+      "title": "Revisao",
+      "type": "object"
+    },
+    "ValidacaoSiga": {
+      "additionalProperties": false,
+      "properties": {
+        "validado_por_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Usuário do SIGA que validou.",
+          "title": "Validado Por Id"
+        },
+        "validado_em": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Validado Em"
+        },
+        "com_pendencias": {
+          "description": "Validado mesmo com pendências, com justificativa.",
+          "title": "Com Pendencias",
+          "type": "boolean"
+        },
+        "pendencias": {
+          "description": "Pendências que existiam no momento da validação (se houve).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Pendencias",
+          "type": "array"
+        },
+        "justificativa": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Justificativa"
+        }
+      },
+      "required": [
+        "validado_por_id",
+        "validado_em",
+        "com_pendencias",
+        "pendencias",
+        "justificativa"
+      ],
+      "title": "ValidacaoSiga",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "semarh.ocr.requerimento",
+      "default": "semarh.ocr.requerimento",
+      "title": "Schema",
+      "type": "string"
+    },
+    "schema_versao": {
+      "default": 1,
+      "title": "Schema Versao",
+      "type": "integer"
+    },
+    "uuid": {
+      "description": "Identificador do requerimento (o mesmo do documento na ferramenta).",
+      "title": "Uuid",
+      "type": "string"
+    },
+    "versao": {
+      "description": "Sobe a cada gravação; o maior número é o mais recente.",
+      "title": "Versao",
+      "type": "integer"
+    },
+    "atualizado_em": {
+      "format": "date-time",
+      "title": "Atualizado Em",
+      "type": "string"
+    },
+    "formulario": {
+      "$ref": "#/$defs/Formulario"
+    },
+    "validacao": {
+      "$ref": "#/$defs/ValidacaoSiga"
+    },
+    "confianca_geral": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Confiança média da leitura, 0–100.",
+      "title": "Confianca Geral"
+    },
+    "avisos": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Avisos",
+      "type": "array"
+    },
+    "campos": {
+      "description": "Rastreabilidade de cada campo do formulário.",
+      "items": {
+        "$ref": "#/$defs/CampoRastreado"
+      },
+      "title": "Campos",
+      "type": "array"
+    },
+    "historico_de_revisoes": {
+      "items": {
+        "$ref": "#/$defs/Revisao"
+      },
+      "title": "Historico De Revisoes",
+      "type": "array"
+    },
+    "origem": {
+      "$ref": "#/$defs/Origem"
+    }
+  },
+  "required": [
+    "uuid",
+    "versao",
+    "atualizado_em",
+    "formulario",
+    "validacao",
+    "confianca_geral",
+    "avisos",
+    "campos",
+    "historico_de_revisoes",
+    "origem"
+  ],
+  "title": "RequerimentoSiga",
+  "type": "object"
+}

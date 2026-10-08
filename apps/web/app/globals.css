@@ -329,6 +329,11 @@ body:has(.pagina--larga) :is(.governo__interno, .topo__interno, .nav__interno, .
   outline-offset: -4px;
 }
 
+/* download do JSON consolidado: separado das seções, no fim da barra */
+.nav a.nav__acao {
+  margin-left: auto;
+}
+
 .contador {
   background: var(--amarelo);
   color: var(--azul-escuro);

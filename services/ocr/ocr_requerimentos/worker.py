@@ -35,6 +35,38 @@ def processar_documento(self, documento_uuid: str) -> str:
     return doc.status
 
 
+@app.task(name="siga.publicar_documento", bind=True, max_retries=5, default_retry_delay=60)
+def publicar_siga(self, documento_uuid: str) -> str:
+    """Grava (ou remove) o JSON do requerimento no bucket do SIGA conforme o estado atual."""
+    from .publicacao import publicar_documento
+
+    try:
+        return publicar_documento(documento_uuid)
+    except Exception as e:  # noqa: BLE001 - bucket do SIGA fora do ar: tenta de novo
+        raise self.retry(exc=e)
+
+
+@app.task(name="siga.gerar_consolidado", bind=True, max_retries=3, default_retry_delay=120)
+def gerar_consolidado(self) -> int:
+    from .publicacao import gravar_consolidado
+
+    try:
+        return gravar_consolidado()
+    except Exception as e:  # noqa: BLE001
+        raise self.retry(exc=e)
+
+
+def agendar_consolidado() -> None:
+    """Regera o requerimentos.json no máximo uma vez por intervalo: a primeira mudança agenda, as
+    seguintes dentro do intervalo entram na mesma geração."""
+    from .repositorio import repositorio
+
+    repo = repositorio()
+    intervalo = config().siga_consolidado_intervalo_s
+    if repo.r.set(repo._k("siga", "consolidado_agendado"), "1", nx=True, ex=max(intervalo, 1)):
+        gerar_consolidado.apply_async(countdown=intervalo)
+
+
 def enfileirar(documento_uuids: list[str]) -> None:
     for u in documento_uuids:
         processar_documento.delay(u)

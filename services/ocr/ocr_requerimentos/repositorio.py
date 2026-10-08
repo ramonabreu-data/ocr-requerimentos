@@ -132,11 +132,13 @@ def _em_blocos(itens: Iterable[str], tamanho: int) -> Iterator[list[str]]:
 
 
 class Repositorio:
-    def __init__(self, store: Armazenamento, r: Redis, prefixo: str = "ocr", trava_segundos: int = 120):
+    def __init__(self, store: Armazenamento, r: Redis, prefixo: str = "ocr", trava_segundos: int = 120,
+                 apos_salvar: Callable[[Documento, str | None], None] | None = None):
         self.store = store
         self.r = r
         self.p = prefixo
         self.trava_segundos = trava_segundos
+        self.apos_salvar = apos_salvar  # recebe (documento salvo, situação anterior): publicação para o SIGA
 
     # ------------------------------------------------------------- chaves
     def _k(self, *partes: str) -> str:
@@ -193,7 +195,12 @@ class Repositorio:
         valido = Documento.model_validate(doc.model_dump())  # reaplica as regras do contrato
         self.store.salvar(self.chave_documento(valido.uuid), valido.model_dump_json(indent=2).encode(),
                           "application/json")
-        self.indexar(valido)
+        anterior = self.indexar(valido)
+        if self.apos_salvar is not None:
+            try:
+                self.apos_salvar(valido, anterior)
+            except Exception:  # noqa: BLE001 - a gravação já aconteceu; a publicação pode ser refeita
+                log.exception("falha ao agendar a publicação de %s para o SIGA", valido.uuid)
         return valido
 
     def salvar_paginas(self, paginas: PaginasDocumento) -> None:
@@ -261,7 +268,8 @@ class Repositorio:
             self.r.set(self._k("lote", u, "fim"), (momento or agora()).isoformat(), nx=True)
 
     # ------------------------------------------------------------- índice
-    def indexar(self, doc: Documento, atualizar_fim: bool = True) -> None:
+    def indexar(self, doc: Documento, atualizar_fim: bool = True) -> str | None:
+        """Atualiza o índice; devolve a situação que o documento tinha antes (None se é novo)."""
         k, u = self._k, doc.uuid
         bruto = self.r.hget(k("resumo"), u)
         antigo = json.loads(bruto) if bruto else None
@@ -303,6 +311,7 @@ class Repositorio:
         if atualizar_fim:
             for lote in novo["_lotes"]:
                 self._atualizar_fim_lote(lote)
+        return antigo["status"] if antigo else None
 
     def resumos(self, uuids: list[str]) -> list[dict[str, Any]]:
         if not uuids:
@@ -448,5 +457,8 @@ def conectar_redis(url: str) -> Redis:
 
 @lru_cache
 def repositorio() -> Repositorio:
+    from .publicacao import apos_salvar
+
     cfg = config()
-    return Repositorio(armazenamento(), conectar_redis(cfg.redis_url), cfg.redis_prefixo, cfg.trava_segundos)
+    return Repositorio(armazenamento(), conectar_redis(cfg.redis_url), cfg.redis_prefixo, cfg.trava_segundos,
+                       apos_salvar=apos_salvar)

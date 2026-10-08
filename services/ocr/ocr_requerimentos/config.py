@@ -39,6 +39,17 @@ class Config(BaseSettings):
     s3_secret_key: str | None = None
     s3_region: str = "us-east-1"
 
+    # Publicação para o SIGA: um JSON por requerimento validado e um consolidado, no bucket do SIGA.
+    # Sem SIGA_S3_BUCKET (e sem SIGA_DESTINO_DIR) a publicação fica desligada. Endpoint e credenciais
+    # vazios usam os do armazenamento da ferramenta (S3_*).
+    siga_s3_bucket: str | None = None
+    siga_s3_endpoint: str | None = None
+    siga_s3_access_key: str | None = None
+    siga_s3_secret_key: str | None = None
+    siga_s3_prefixo: str = "ocr-requerimentos/"
+    siga_destino_dir: str | None = None  # alternativa local ao bucket (testes/desenvolvimento)
+    siga_consolidado_intervalo_s: int = 300  # o consolidado é regerado no máximo uma vez por intervalo
+
     api_key: str | None = None  # se definido, exigido no cabeçalho X-API-Key
     cors_origens: str = "http://localhost:3000"
     max_upload_mb: int = 50

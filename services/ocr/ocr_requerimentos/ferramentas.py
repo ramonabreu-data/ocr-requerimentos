@@ -2,7 +2,8 @@
 
   reconstruir-indice        refaz o índice do Redis lendo todos os JSONs do bucket
   acuracia [--saida PASTA]  análises de acurácia do OCR sobre os requerimentos validados (CSV)
-  json-schema PASTA         grava o JSON Schema dos arquivos (documento, páginas, lote)
+  json-schema PASTA         grava o JSON Schema dos arquivos (documento, páginas, lote, padrão do SIGA)
+  publicar-siga             reenvia ao bucket do SIGA todos os validados e regera o consolidado
   carga-sintetica N         grava N documentos sintéticos e mede as consultas da API (só em ambiente de teste)"""
 from __future__ import annotations
 
@@ -113,9 +114,13 @@ def _csv(linhas: list[dict], colunas: list[str]) -> str:
 def gravar_json_schema(pasta: Path) -> list[Path]:
     pasta.mkdir(parents=True, exist_ok=True)
     saida = []
-    for nome, modelo in (("documento", Documento), ("paginas", PaginasDocumento), ("lote", Lote)):
+    from .publicacao import ConsolidadoSiga, RequerimentoSiga
+
+    for nome, modelo in (("documento", Documento), ("paginas", PaginasDocumento), ("lote", Lote),
+                         ("siga-requerimento", RequerimentoSiga), ("siga-requerimentos", ConsolidadoSiga)):
         p = pasta / f"{nome}.schema.json"
-        p.write_text(json.dumps(modelo.model_json_schema(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        p.write_text(json.dumps(modelo.model_json_schema(by_alias=True), ensure_ascii=False, indent=2) + "\n",
+                     encoding="utf-8")
         saida.append(p)
     return saida
 
@@ -197,12 +202,24 @@ def carga_sintetica(repo: Repositorio, n: int, por_lote: int = 1000, paralelismo
             "consultas_ms": [{"consulta": c, "ms": ms, "total": tot} for c, ms, tot in medidas]}
 
 
+def _validados(repo: Repositorio, bloco: int = 1000):
+    pagina = 1
+    while True:
+        _, itens = repo.consultar(status=["validado"], crescente=True, pagina=pagina, tamanho=bloco)
+        if itens:
+            yield [r["uuid"] for r in itens]
+        if len(itens) < bloco:
+            return
+        pagina += 1
+
+
 # ----------------------------------------------------------------- linha de comando
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m ocr_requerimentos.ferramentas", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="comando", required=True)
     sub.add_parser("reconstruir-indice")
+    sub.add_parser("publicar-siga")
     a = sub.add_parser("acuracia")
     a.add_argument("--saida", type=Path, help="pasta para acuracia_campo.csv e calibracao_confianca.csv")
     j = sub.add_parser("json-schema")
@@ -218,6 +235,19 @@ def main(argv: list[str] | None = None) -> int:
         t = time.monotonic()
         res = repositorio().reconstruir_indice()
         print(json.dumps({**res, "segundos": round(time.monotonic() - t, 1)}, ensure_ascii=False))
+    elif args.comando == "publicar-siga":
+        from .publicacao import destino, gravar_consolidado, publicar_documento
+
+        if destino() is None:
+            print("publicação para o SIGA desligada: defina SIGA_S3_BUCKET", file=sys.stderr)
+            return 2
+        repo = repositorio()
+        n = 0
+        for uuids in _validados(repo):
+            for u in uuids:
+                publicar_documento(u, repo)
+                n += 1
+        print(json.dumps({"publicados": n, "consolidado": gravar_consolidado(repo)}, ensure_ascii=False))
     elif args.comando == "acuracia":
         campos, faixas = acuracia(repositorio().iterar_documentos())
         if args.saida:

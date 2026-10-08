@@ -25,6 +25,9 @@ os.environ["STORAGE_BACKEND"] = "local"
 os.environ["CELERY_EAGER"] = "true"
 os.environ["CELERY_BROKER_URL"] = "memory://"
 os.environ["REDIS_URL"] = "memoria://"
+_SIGA = tempfile.mkdtemp(prefix="ocr-siga-")
+os.environ["SIGA_DESTINO_DIR"] = _SIGA  # "bucket do SIGA" numa pasta temporária
+os.environ["SIGA_CONSOLIDADO_INTERVALO_S"] = "0"
 if TEST_DB:
     os.environ["SIGA_DATABASE_URL"] = TEST_DB
     os.environ["REFERENCIAS"] = "siga"
@@ -95,8 +98,9 @@ def repo():
     from ocr_requerimentos.repositorio import repositorio
 
     r = repositorio()
-    for item in Path(r.store.raiz).iterdir():
-        shutil.rmtree(item) if item.is_dir() else item.unlink()
+    for raiz in (Path(r.store.raiz), Path(_SIGA)):
+        for item in raiz.iterdir():
+            shutil.rmtree(item) if item.is_dir() else item.unlink()
     r.r.flushall()
     return r
 

@@ -21,6 +21,8 @@ services:
       postgres: { condition: service_healthy }
     environment:
       SIGA_DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
+      SIGA_S3_BUCKET: siga  # no MinIO local, no papel do bucket do SIGA
+      SIGA_CONSOLIDADO_INTERVALO_S: "60"
     ports: ["127.0.0.1:${API_PORTA:-8000}:8000"]  # documentação interativa em http://localhost:${API_PORTA:-8000}/docs
 
   worker:
@@ -28,10 +30,14 @@ services:
       postgres: { condition: service_healthy }
     environment:
       SIGA_DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
+      SIGA_S3_BUCKET: siga  # no MinIO local, no papel do bucket do SIGA
+      SIGA_CONSOLIDADO_INTERVALO_S: "60"
 
   watcher:
     environment:
       SIGA_DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
+      SIGA_S3_BUCKET: siga  # no MinIO local, no papel do bucket do SIGA
+      SIGA_CONSOLIDADO_INTERVALO_S: "60"
 
 volumes:
   pgdata:

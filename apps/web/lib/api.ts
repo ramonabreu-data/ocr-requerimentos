@@ -76,6 +76,8 @@ export const api = {
   imagemUrl: (uuid: string, pagina: number) => `${BASE}/documentos/${uuid}/paginas/${pagina}/imagem`,
   arquivoUrl: (uuid: string) => `${BASE}/documentos/${uuid}/arquivo`,
   // a versão na URL garante que o navegador baixe o arquivo gravado mais recente
+  // JSON padrão do SIGA com todos os requerimentos validados, gerado na hora
+  jsonConsolidadoUrl: `${BASE}/siga/requerimentos.json`,
   jsonUrl: (uuid: string, versao?: number) => `${BASE}/documentos/${uuid}/json${versao ? `?v=${versao}` : ""}`,
   reprocessar: (uuid: string) => pedir<DocumentoResumo>(`/documentos/${uuid}/reprocessar`, { method: "POST" }),
   corrigir: (uuid: string, corpo: CorpoCorrecao) =>

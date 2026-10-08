@@ -13,10 +13,10 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 
-from .. import exportacao
+from .. import exportacao, publicacao
 from ..config import config
 from ..dados_referencia import DOMINIOS
 from ..extracao.finalidades import POR_CHAVE, FinalidadeDef, rotulo_campo
@@ -526,6 +526,53 @@ def _revisao(r: Revisao) -> dict[str, Any]:
 @app.get("/documentos/{uid}/revisoes", dependencies=Protegido)
 def historico(uid: str):
     return [_revisao(r) for r in _doc(uid).historico_de_revisoes]
+
+
+# ----------------------------------------------------------------- publicação para o SIGA
+@app.get("/siga/requerimentos.json", dependencies=Protegido)
+def json_consolidado():
+    """O JSON padrão do SIGA com todos os requerimentos validados, gerado agora (sempre atualizado).
+    É o mesmo conteúdo do requerimentos.json que vai para o bucket do SIGA."""
+    nome = f"requerimentos-siga-{datetime.now(FUSO):%Y%m%d-%H%M}.json"
+    return StreamingResponse(publicacao.consolidado(repositorio()), media_type="application/json",
+                             headers={"Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
+
+
+@app.get("/siga/requerimentos/{uid}.json", dependencies=Protegido)
+def json_siga_documento(uid: str):
+    """O JSON padrão do SIGA de um requerimento (validado ou não, para conferência)."""
+    d = _doc(uid)
+    if d.requerimento is None:
+        raise HTTPException(409, "documento ainda não foi processado")
+    return Response(publicacao.json_siga(d), media_type="application/json",
+                    headers={"Content-Disposition": disposicao(f"{d.uuid}-siga.json", "attachment"),
+                             "Cache-Control": "no-store"})
+
+
+@app.get("/siga/situacao", dependencies=Protegido)
+def situacao_siga():
+    return publicacao.situacao()
+
+
+@app.post("/siga/republicar", dependencies=Protegido)
+def republicar_siga():
+    """Reenvia ao bucket do SIGA todos os validados e regera o consolidado (carga inicial ou correção)."""
+    if publicacao.destino() is None:
+        raise HTTPException(409, "publicação para o SIGA desligada: defina SIGA_S3_BUCKET")
+    from ..worker import gerar_consolidado, publicar_siga
+
+    repo = repositorio()
+    total, desloc = 0, 0
+    while True:
+        _, itens = repo.consultar(status=["validado"], crescente=True, pagina=desloc // 1000 + 1, tamanho=1000)
+        for r in itens:
+            publicar_siga.delay(r["uuid"])
+        total += len(itens)
+        desloc += len(itens)
+        if len(itens) < 1000:
+            break
+    gerar_consolidado.delay()
+    return {"enfileirados": total}
 
 
 @app.get("/referencias/{tipo}", dependencies=Protegido)

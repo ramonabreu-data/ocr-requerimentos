@@ -15,6 +15,7 @@ class Armazenamento(Protocol):
     def existe(self, chave: str) -> bool: ...
     def remover(self, chave: str) -> None: ...
     def listar(self, prefixo: str) -> Iterator[str]: ...
+    def salvar_arquivo(self, chave: str, caminho: str, content_type: str = "application/octet-stream") -> None: ...
 
 
 class ArmazenamentoLocal:
@@ -33,6 +34,15 @@ class ArmazenamentoLocal:
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_suffix(p.suffix + ".tmp")
         tmp.write_bytes(conteudo)
+        tmp.replace(p)
+
+    def salvar_arquivo(self, chave: str, caminho: str, content_type: str = "application/octet-stream") -> None:
+        import shutil
+
+        p = self._caminho(chave)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        shutil.copyfile(caminho, tmp)
         tmp.replace(p)
 
     def ler(self, chave: str) -> bytes:
@@ -54,25 +64,33 @@ class ArmazenamentoLocal:
 
 
 class ArmazenamentoS3:
-    def __init__(self):
+    def __init__(self, bucket: str | None = None, endpoint: str | None = None, access_key: str | None = None,
+                 secret_key: str | None = None):
         import boto3
 
         c = config()
-        self.bucket = c.s3_bucket
+        self.bucket = bucket or c.s3_bucket
         self.cliente = boto3.client(
             "s3",
-            endpoint_url=c.s3_endpoint,
-            aws_access_key_id=c.s3_access_key,
-            aws_secret_access_key=c.s3_secret_key,
+            endpoint_url=endpoint or c.s3_endpoint,
+            aws_access_key_id=access_key or c.s3_access_key,
+            aws_secret_access_key=secret_key or c.s3_secret_key,
             region_name=c.s3_region,
         )
         try:
             self.cliente.head_bucket(Bucket=self.bucket)
         except Exception:
-            self.cliente.create_bucket(Bucket=self.bucket)
+            try:
+                self.cliente.create_bucket(Bucket=self.bucket)
+            except Exception:  # noqa: BLE001 - sem permissão de criar (bucket de outro sistema): o envio dirá
+                pass
 
     def salvar(self, chave: str, conteudo: bytes, content_type: str = "application/octet-stream") -> None:
         self.cliente.put_object(Bucket=self.bucket, Key=chave, Body=conteudo, ContentType=content_type)
+
+    def salvar_arquivo(self, chave: str, caminho: str, content_type: str = "application/octet-stream") -> None:
+        """Envio em partes (multipart): serve para arquivos grandes, como o consolidado."""
+        self.cliente.upload_file(caminho, self.bucket, chave, ExtraArgs={"ContentType": content_type})
 
     def ler(self, chave: str) -> bytes:
         try:

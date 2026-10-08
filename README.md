@@ -174,6 +174,33 @@ um índice de texto (Redis 8 com o Query Engine ou OpenSearch) alimentado pelos 
 `_SSLMODE` do `.env` (`SIGA_DATABASE_URL`, se definida, vale sobre elas). O usuário só precisa de
 `SELECT`.
 
+## Publicação para o SIGA (JSON padrão)
+
+Os requerimentos **validados** são publicados no bucket do SIGA num formato próprio, o contrato com o
+SIGA (`docs/contrato-json/siga-requerimento.schema.json`, gerado de `publicacao.py`):
+
+```
+{SIGA_S3_PREFIXO}requerimentos/{uuid}.json   um requerimento; gravado na hora em que é validado ou alterado,
+                                             e removido se uma correção desfizer a validação
+{SIGA_S3_PREFIXO}requerimentos.json          todos os validados (consolidado); regerado no máximo uma vez a
+                                             cada SIGA_CONSOLIDADO_INTERVALO_S (padrão 5 min) após mudanças
+```
+
+Cada requerimento traz `formulario` (os dados do formulário consolidados: requerente, procedimento,
+intervenção, localização, finalidades com detalhes, irrigação, data; com os ids do SIGA quando
+encontrados), `validacao` (quem, quando, e a justificativa se validado com pendências), `campos` (para
+cada campo: `valor_final`, `confianca_final`, `corrigido_manualmente` e `leitura_original_ocr`),
+`historico_de_revisoes` e `origem` (arquivo, SHA-256, QR code, versão do OCR). Texto e posição das
+palavras do OCR ficam só no JSON interno.
+
+- Na tela, **"JSON consolidado"** na barra superior baixa esse mesmo conteúdo, gerado na hora.
+- Configuração: `SIGA_S3_BUCKET` (sem ele a publicação fica desligada), `SIGA_S3_ENDPOINT`,
+  `SIGA_S3_ACCESS_KEY`, `SIGA_S3_SECRET_KEY` (vazios usam os `S3_*`) e `SIGA_S3_PREFIXO`. Em
+  desenvolvimento, o override publica num bucket `siga` do MinIO local, com intervalo de 60 s.
+- O envio roda no worker e é repetido se o bucket do SIGA estiver fora do ar. Para uma carga inicial ou
+  depois de uma falha longa: `POST /siga/republicar` ou
+  `python -m ocr_requerimentos.ferramentas publicar-siga`.
+
 ## Rodar em desenvolvimento
 
 Requer Docker com Compose v2.
@@ -269,6 +296,9 @@ de propósito, para passar pelas regras do próprio Django.
 | `POST /documentos/{uuid}/validar` | valida (`forcar` + `justificativa` quando há pendências; `versao` como nas correções) |
 | `POST /documentos/{uuid}/reprocessar` | lê de novo e reaplica as correções manuais (409 se já validado) |
 | `GET /documentos/{uuid}/revisoes` | histórico de correções |
+| `GET /siga/requerimentos.json` | JSON padrão do SIGA com todos os validados, gerado na hora (o botão "JSON consolidado") |
+| `GET /siga/requerimentos/{uuid}.json` | JSON padrão do SIGA de um requerimento, para conferência |
+| `GET /siga/situacao`, `POST /siga/republicar` | situação da publicação; reenvio de todos os validados e do consolidado |
 | `GET /referencias/{municipios\|procedimentos\|intervencoes\|finalidades\|sistemas\|culturas}` | listas para a tela |
 
 ## Testes

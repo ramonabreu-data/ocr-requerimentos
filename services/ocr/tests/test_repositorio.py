@@ -85,7 +85,10 @@ def test_ct101_contrato_recusa_dados_invalidos(repo):
 def test_ct102_json_schema_publicado(tmp_path):
     arquivos = gravar_json_schema(tmp_path)
     schema = json.loads((tmp_path / "documento.schema.json").read_text(encoding="utf-8"))
-    assert [p.name for p in arquivos] == ["documento.schema.json", "paginas.schema.json", "lote.schema.json"]
+    assert [p.name for p in arquivos] == ["documento.schema.json", "paginas.schema.json", "lote.schema.json",
+                                          "siga-requerimento.schema.json", "siga-requerimentos.schema.json"]
+    siga = json.loads((tmp_path / "siga-requerimento.schema.json").read_text(encoding="utf-8"))
+    assert {"schema", "formulario", "campos", "validacao"} <= set(siga["properties"])
     assert "leitura_original_ocr" in schema["$defs"]["Campo"]["properties"]
     assert "Texto lido pelo OCR" in json.dumps(schema, ensure_ascii=False)
 

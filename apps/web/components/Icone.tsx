@@ -7,6 +7,7 @@ const CAMINHOS = {
   revisao: "M9 4h6v3H9zM8 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-2M9 14l2 2 4-4",
   requerimentos: "M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7l-4-4Zm0 0v4h4M9 12h6M9 16h6",
   seta: "m9 6 6 6-6 6",
+  baixar: "M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M4 19h16",
   filtro: "M4 5h16l-6 7.5V18l-4 2v-7.5L4 5Z",
   nuvem: "M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1 .5 7.97M12 12v8m0-8-3 3m3-3 3 3",
   arquivo: "M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7l-4-4Zm0 0v4h4",
