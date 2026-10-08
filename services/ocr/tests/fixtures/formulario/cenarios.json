@@ -1,0 +1,2227 @@
+{
+ "fin01_1": {
+  "nome": "JOÃO DA SILVA TESTE",
+  "cpf_cnpj": "43321819643",
+  "assunto": "Poço Tubular",
+  "municipio": "ALTOS",
+  "localidade": "Sítio Boa Vista",
+  "lat_grau": "-5",
+  "lat_min": "1",
+  "lat_seg1": "33",
+  "lat_seg2": "81",
+  "long_grau": "-42",
+  "long_min": "30",
+  "long_seg1": "27",
+  "long_seg2": "00",
+  "procedimento": "Outorga Preventiva",
+  "finalidade": {
+   "1": true
+  },
+  "descricao": "Uso da água para abastecimento público no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "Administração direta (prefeitura)",
+  "concessao": {
+   "numero": "12281",
+   "data_final": "2033-04-17"
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "ALTOS",
+    "localidade": "Bairro São José",
+    "qtd_habitantes": "6565"
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin01_2": {
+  "nome": "PISCICULTURA RIO POTI ME",
+  "cpf_cnpj": "63794026000179",
+  "assunto": "Captação Superficial",
+  "municipio": "TERESINA",
+  "localidade": "Povoado Lagoa Seca",
+  "lat_grau": "-5",
+  "lat_min": "4",
+  "lat_seg1": "6",
+  "lat_seg2": "23",
+  "long_grau": "-42",
+  "long_min": "46",
+  "long_seg1": "47",
+  "long_seg2": "52",
+  "procedimento": "Outorga de Direito de Uso",
+  "finalidade": {
+   "1": true
+  },
+  "descricao": "Uso da água para abastecimento público no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "Autorizada (associações, cooperativas)",
+  "concessao": {
+   "numero": "20380",
+   "data_final": "2033-06-04"
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "PICOS",
+    "localidade": "Povoado Cana Brava",
+    "qtd_habitantes": "3219"
+   },
+   {
+    "municipio": "PIRIPIRI",
+    "localidade": "Povoado Cana Brava",
+    "qtd_habitantes": "19832"
+   },
+   {
+    "municipio": "OEIRAS",
+    "localidade": "Sede",
+    "qtd_habitantes": "23961"
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin02_1": {
+  "nome": "FRANCISCO DE ASSIS PEREIRA",
+  "cpf_cnpj": "61849593108",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "PICOS",
+  "localidade": "Sítio Boa Vista",
+  "lat_grau": "-7",
+  "lat_min": "5",
+  "lat_seg1": "2",
+  "lat_seg2": "61",
+  "long_grau": "-41",
+  "long_min": "30",
+  "long_seg1": "27",
+  "long_seg2": "06",
+  "procedimento": "Autorização para Perfuração de Poço Tubular e Outorga Preventiva",
+  "finalidade": {
+   "2": true
+  },
+  "descricao": "Uso da água para aquicultura em tanque escavado no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "2.8",
+   "area_total_tanques": "7567",
+   "especies": {
+    "Ranicultura": "Ranicultura"
+   }
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin02_2": {
+  "nome": "PREFEITURA MUNICIPAL DE TESTE",
+  "cpf_cnpj": "16475255000140",
+  "assunto": "Poço Tubular",
+  "municipio": "PARNAÍBA",
+  "localidade": "Fazenda Santa Luzia",
+  "lat_grau": "-2",
+  "lat_min": "51",
+  "lat_seg1": "5",
+  "lat_seg2": "32",
+  "long_grau": "-41",
+  "long_min": "44",
+  "long_seg1": "4",
+  "long_seg2": "09",
+  "procedimento": "Autorização e Outorga de Direito de Uso (Poços Tubulares)",
+  "finalidade": {
+   "2": true
+  },
+  "descricao": "Uso da água para aquicultura em tanque escavado no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "2.8",
+   "area_total_tanques": "8848",
+   "especies": {
+    "Piscicultura Pintado": "Piscicultura Pintado",
+    "Piscicultura Tambaqui": "Piscicultura Tambaqui",
+    "Piscicultura ornamentais": "Piscicultura ornamentais"
+   }
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin03_1": {
+  "nome": "JOSÉ RIBAMAR NUNES",
+  "cpf_cnpj": "76483503008",
+  "assunto": "Captação Superficial",
+  "municipio": "FLORIANO",
+  "localidade": "Povoado Lagoa Seca",
+  "lat_grau": "-6",
+  "lat_min": "45",
+  "lat_seg1": "59",
+  "lat_seg2": "71",
+  "long_grau": "-43",
+  "long_min": "2",
+  "long_seg1": "43",
+  "long_seg2": "87",
+  "procedimento": "Regularização de Poço Tubular",
+  "finalidade": {
+   "3": true
+  },
+  "descricao": "Uso da água para consumo humano no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "Posto de Gasolina",
+    "qtd_pessoas_dia": "276"
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin03_2": {
+  "nome": "LATICÍNIOS SERRA DA CAPIVARA LTDA",
+  "cpf_cnpj": "95376724000140",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "CAMPO MAIOR",
+  "localidade": "Fazenda Santa Luzia",
+  "lat_grau": "-4",
+  "lat_min": "52",
+  "lat_seg1": "24",
+  "lat_seg2": "17",
+  "long_grau": "-42",
+  "long_min": "7",
+  "long_seg1": "43",
+  "long_seg2": "27",
+  "procedimento": "Renovação de Outorga Preventiva",
+  "finalidade": {
+   "3": true
+  },
+  "descricao": "Uso da água para consumo humano no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "Indústria (esgoto sanitário)",
+    "qtd_pessoas_dia": "553"
+   },
+   {
+    "estabelecimento": "Unidade Residencial não atendida por rede de água",
+    "qtd_pessoas_dia": "271"
+   },
+   {
+    "estabelecimento": "Escola Com lanchonete, sem ginásio e chuveiro",
+    "qtd_pessoas_dia": "766"
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin04_1": {
+  "nome": "RAIMUNDO NONATO CARVALHO",
+  "cpf_cnpj": "65328710100",
+  "assunto": "Poço Tubular",
+  "municipio": "BOM JESUS",
+  "localidade": "Fazenda Santa Luzia",
+  "lat_grau": "-9",
+  "lat_min": "3",
+  "lat_seg1": "41",
+  "lat_seg2": "55",
+  "long_grau": "-44",
+  "long_min": "19",
+  "long_seg1": "12",
+  "long_seg2": "78",
+  "procedimento": "Renovação de Outorga de Direito de Uso",
+  "finalidade": {
+   "4": true
+  },
+  "descricao": "Uso da água para criação animal no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "Equino ou Asinino",
+    "sistema_criacao": "Extensivo",
+    "numero_cabecas": "39091"
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin04_2": {
+  "nome": "PISCICULTURA RIO POTI ME",
+  "cpf_cnpj": "78480184000121",
+  "assunto": "Captação Superficial",
+  "municipio": "URUÇUÍ",
+  "localidade": "Data Riacho Fundo",
+  "lat_grau": "-7",
+  "lat_min": "16",
+  "lat_seg1": "25",
+  "lat_seg2": "13",
+  "long_grau": "-44",
+  "long_min": "33",
+  "long_seg1": "42",
+  "long_seg2": "62",
+  "procedimento": "Renovação de Autorização e de Outorga Preventiva (Poços Tubulares)",
+  "finalidade": {
+   "4": true
+  },
+  "descricao": "Uso da água para criação animal no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "Bubalino",
+    "sistema_criacao": "Extensivo",
+    "numero_cabecas": "10370"
+   },
+   {
+    "especie": "Bovino de Leite",
+    "sistema_criacao": "Extensivo",
+    "numero_cabecas": "217"
+   },
+   {
+    "especie": "Equino ou Asinino",
+    "sistema_criacao": "Extensivo",
+    "numero_cabecas": "32811"
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin05_1": {
+  "nome": "JOÃO DA SILVA TESTE",
+  "cpf_cnpj": "14893252801",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "OEIRAS",
+  "localidade": "Assentamento Nova Esperança",
+  "lat_grau": "-6",
+  "lat_min": "59",
+  "lat_seg1": "37",
+  "lat_seg2": "69",
+  "long_grau": "-42",
+  "long_min": "7",
+  "long_seg1": "45",
+  "long_seg2": "23",
+  "procedimento": "Renovação de Autorização e de Outorga de Direito de Uso (Poços Tubulares)",
+  "finalidade": {
+   "5": true
+  },
+  "descricao": "Uso da água para indústria no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "2330-3/01",
+    "producao_anual": "512350",
+    "unidade": "Metros cúbicos"
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin05_2": {
+  "nome": "PREFEITURA MUNICIPAL DE TESTE",
+  "cpf_cnpj": "43039117000191",
+  "assunto": "Poço Tubular",
+  "municipio": "SÃO RAIMUNDO NONATO",
+  "localidade": "Sítio Boa Vista",
+  "lat_grau": "-9",
+  "lat_min": "3",
+  "lat_seg1": "28",
+  "lat_seg2": "99",
+  "long_grau": "-42",
+  "long_min": "39",
+  "long_seg1": "25",
+  "long_seg2": "52",
+  "procedimento": "Outorga Preventiva",
+  "finalidade": {
+   "5": true
+  },
+  "descricao": "Uso da água para indústria no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "1121-6/00",
+    "producao_anual": "576520",
+    "unidade": "Metros cúbicos por mês"
+   },
+   {
+    "tipologia": "1052-0/00",
+    "producao_anual": "277942",
+    "unidade": "Não Informado"
+   },
+   {
+    "tipologia": "1121-6/00",
+    "producao_anual": "222096",
+    "unidade": "Kilometros por mês"
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin06_1": {
+  "nome": "FRANCISCO DE ASSIS PEREIRA",
+  "cpf_cnpj": "34657871374",
+  "assunto": "Captação Superficial",
+  "municipio": "CORRENTE",
+  "localidade": "Fazenda Santa Luzia",
+  "lat_grau": "-10",
+  "lat_min": "23",
+  "lat_seg1": "49",
+  "lat_seg2": "59",
+  "long_grau": "-45",
+  "long_min": "8",
+  "long_seg1": "4",
+  "long_seg2": "10",
+  "procedimento": "Outorga de Direito de Uso",
+  "finalidade": {
+   "6": true
+  },
+  "descricao": "Uso da água para mineração - outros processos extrativos no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin06_2": {
+  "nome": "LATICÍNIOS SERRA DA CAPIVARA LTDA",
+  "cpf_cnpj": "83930103000188",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "PIRIPIRI",
+  "localidade": "Sítio Boa Vista",
+  "lat_grau": "-4",
+  "lat_min": "18",
+  "lat_seg1": "48",
+  "lat_seg2": "95",
+  "long_grau": "-41",
+  "long_min": "49",
+  "long_seg1": "40",
+  "long_seg2": "43",
+  "procedimento": "Autorização para Perfuração de Poço Tubular e Outorga Preventiva",
+  "finalidade": {
+   "6": true
+  },
+  "descricao": "Uso da água para mineração - outros processos extrativos no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin07_1": {
+  "nome": "JOSÉ RIBAMAR NUNES",
+  "cpf_cnpj": "18347382964",
+  "assunto": "Poço Tubular",
+  "municipio": "JOSÉ DE FREITAS",
+  "localidade": "Assentamento Nova Esperança",
+  "lat_grau": "-4",
+  "lat_min": "42",
+  "lat_seg1": "34",
+  "lat_seg2": "05",
+  "long_grau": "-42",
+  "long_min": "32",
+  "long_seg1": "2",
+  "long_seg2": "53",
+  "procedimento": "Autorização e Outorga de Direito de Uso (Poços Tubulares)",
+  "finalidade": {
+   "7": true
+  },
+  "descricao": "Uso da água para irrigação no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "Sulcos abertos em desnível",
+    "area": "2.5",
+    "cultura": "Trevo (feno, ciclo individual de corte)"
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin07_2": {
+  "nome": "PISCICULTURA RIO POTI ME",
+  "cpf_cnpj": "11656670000187",
+  "assunto": "Captação Superficial",
+  "municipio": "BARRA D'ALCÂNTARA",
+  "localidade": "Data Riacho Fundo",
+  "lat_grau": "-6",
+  "lat_min": "31",
+  "lat_seg1": "21",
+  "lat_seg2": "73",
+  "long_grau": "-42",
+  "long_min": "7",
+  "long_seg1": "9",
+  "long_seg2": "46",
+  "procedimento": "Regularização de Poço Tubular",
+  "finalidade": {
+   "7": true
+  },
+  "descricao": "Uso da água para irrigação no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "Aspersão por sistema deslocamento linear",
+    "area": "0.5",
+    "cultura": "Eucalipto"
+   },
+   {
+    "sistema": "Gotejamento subterrâneo - tubo poroso",
+    "area": "0.5",
+    "cultura": "Capim Sudão ¿ anual (feno, vários cortes, efeitos médios)"
+   },
+   {
+    "sistema": "Aspersão por sistema pivô central com LEPA",
+    "area": "2.5",
+    "cultura": "Maças, cerejas e peras (sem cobertura de chão, com geadas)"
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin08_1": {
+  "nome": "RAIMUNDO NONATO CARVALHO",
+  "cpf_cnpj": "47317810860",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "OLHO D'ÁGUA DO PIAUÍ",
+  "localidade": "Sítio Boa Vista",
+  "lat_grau": "-5",
+  "lat_min": "50",
+  "lat_seg1": "42",
+  "lat_seg2": "50",
+  "long_grau": "-42",
+  "long_min": "34",
+  "long_seg1": "4",
+  "long_seg2": "12",
+  "procedimento": "Renovação de Outorga Preventiva",
+  "finalidade": {
+   "8": true
+  },
+  "descricao": "Uso da água para mineração - extração de areia/cascalho em leito de rio no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "1628",
+   "proporcao": "2",
+   "umidade": "10"
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin08_2": {
+  "nome": "PREFEITURA MUNICIPAL DE TESTE",
+  "cpf_cnpj": "60260647000184",
+  "assunto": "Poço Tubular",
+  "municipio": "ALTO LONGÁ",
+  "localidade": "Povoado Lagoa Seca",
+  "lat_grau": "-5",
+  "lat_min": "15",
+  "lat_seg1": "33",
+  "lat_seg2": "69",
+  "long_grau": "-42",
+  "long_min": "12",
+  "long_seg1": "42",
+  "long_seg2": "71",
+  "procedimento": "Renovação de Outorga de Direito de Uso",
+  "finalidade": {
+   "8": true
+  },
+  "descricao": "Uso da água para mineração - extração de areia/cascalho em leito de rio no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "7030",
+   "proporcao": "4",
+   "umidade": "28"
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin09_1": {
+  "nome": "JOÃO DA SILVA TESTE",
+  "cpf_cnpj": "72343098026",
+  "assunto": "Captação Superficial",
+  "municipio": "ALTOS",
+  "localidade": "Data Riacho Fundo",
+  "lat_grau": "-4",
+  "lat_min": "59",
+  "lat_seg1": "25",
+  "lat_seg2": "65",
+  "long_grau": "-42",
+  "long_min": "27",
+  "long_seg1": "15",
+  "long_seg2": "92",
+  "procedimento": "Renovação de Autorização e de Outorga Preventiva (Poços Tubulares)",
+  "finalidade": {
+   "9": true
+  },
+  "descricao": "Uso da água para outras no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "Lavagem de veículos",
+    "descricao": "Uso eventual"
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin09_2": {
+  "nome": "LATICÍNIOS SERRA DA CAPIVARA LTDA",
+  "cpf_cnpj": "82081219000127",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "TERESINA",
+  "localidade": "Sítio Boa Vista",
+  "lat_grau": "-5",
+  "lat_min": "8",
+  "lat_seg1": "5",
+  "lat_seg2": "95",
+  "long_grau": "-42",
+  "long_min": "48",
+  "long_seg1": "8",
+  "long_seg2": "36",
+  "procedimento": "Renovação de Autorização e de Outorga de Direito de Uso (Poços Tubulares)",
+  "finalidade": {
+   "9": true
+  },
+  "descricao": "Uso da água para outras no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "Abastecimento de pulverizadores",
+    "descricao": "Uso eventual"
+   },
+   {
+    "uso": "Poço de injeção para recuperação ambiental",
+    "descricao": "Atende a sede da propriedade"
+   },
+   {
+    "uso": "Depuração de efluentes (exceto proveniente de consumo humano",
+    "descricao": "Uso eventual"
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "fin10_1": {
+  "nome": "FRANCISCO DE ASSIS PEREIRA",
+  "cpf_cnpj": "16998543514",
+  "assunto": "Poço Tubular",
+  "municipio": "PICOS",
+  "localidade": "Fazenda Santa Luzia",
+  "lat_grau": "-7",
+  "lat_min": "4",
+  "lat_seg1": "19",
+  "lat_seg2": "59",
+  "long_grau": "-41",
+  "long_min": "30",
+  "long_seg1": "57",
+  "long_seg2": "69",
+  "procedimento": "Outorga Preventiva",
+  "finalidade": {
+   "10": true
+  },
+  "descricao": "Uso da água para termoelétrica no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "Gasolina e leves de petróleo",
+   "potencia": "12.5",
+   "producao": "17654"
+  }
+ },
+ "fin10_2": {
+  "nome": "PISCICULTURA RIO POTI ME",
+  "cpf_cnpj": "51079911000197",
+  "assunto": "Captação Superficial",
+  "municipio": "PARNAÍBA",
+  "localidade": "Assentamento Nova Esperança",
+  "lat_grau": "-2",
+  "lat_min": "52",
+  "lat_seg1": "58",
+  "lat_seg2": "19",
+  "long_grau": "-41",
+  "long_min": "47",
+  "long_seg1": "24",
+  "long_seg2": "00",
+  "procedimento": "Outorga de Direito de Uso",
+  "finalidade": {
+   "10": true
+  },
+  "descricao": "Uso da água para termoelétrica no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "Gases de Siderurgia",
+   "potencia": "150",
+   "producao": "35260"
+  }
+ },
+ "todas_1": {
+  "nome": "JOSÉ RIBAMAR NUNES",
+  "cpf_cnpj": "13542784966",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "FLORIANO",
+  "localidade": "Data Riacho Fundo",
+  "lat_grau": "-6",
+  "lat_min": "48",
+  "lat_seg1": "24",
+  "lat_seg2": "32",
+  "long_grau": "-43",
+  "long_min": "2",
+  "long_seg1": "6",
+  "long_seg2": "36",
+  "procedimento": "Autorização para Perfuração de Poço Tubular e Outorga Preventiva",
+  "finalidade": {
+   "1": true,
+   "2": true,
+   "3": true,
+   "4": true,
+   "5": true,
+   "6": true,
+   "7": true,
+   "8": true,
+   "9": true,
+   "10": true
+  },
+  "descricao": "Uso da água para abastecimento público, aquicultura em tanque escavado, consumo humano, criação animal, indústria, mineração - outros processos extrativos, irrigação, mineração - extração de areia/cascalho em leito de rio, outras, termoelétrica no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "Administração direta (prefeitura)",
+  "concessao": {
+   "numero": "87539",
+   "data_final": "2044-05-22"
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "PARNAÍBA",
+    "localidade": "Sede",
+    "qtd_habitantes": "8716"
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "1.5",
+   "area_total_tanques": "3607",
+   "especies": {
+    "Piscicultura Pirarucu": "Piscicultura Pirarucu"
+   }
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "Cinema/teatro",
+    "qtd_pessoas_dia": "280"
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "Suíno",
+    "sistema_criacao": "Intensivo",
+    "numero_cabecas": "47034"
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "1052-0/00",
+    "producao_anual": "720902",
+    "unidade": "Kilometros por mês"
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "Caminhão regadeira",
+    "area": "120",
+    "cultura": "Jaboticaba"
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "4214",
+   "proporcao": "2",
+   "umidade": "7"
+  },
+  "outros": [
+   {
+    "uso": "Combate a incêndio",
+    "descricao": "Lavagem de pisos e equipamentos"
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "Gasolina e leves de petróleo",
+   "potencia": "5",
+   "producao": "964"
+  }
+ },
+ "todas_2": {
+  "nome": "PREFEITURA MUNICIPAL DE TESTE",
+  "cpf_cnpj": "42786801000174",
+  "assunto": "Poço Tubular",
+  "municipio": "CAMPO MAIOR",
+  "localidade": "Sítio Boa Vista",
+  "lat_grau": "-4",
+  "lat_min": "50",
+  "lat_seg1": "47",
+  "lat_seg2": "92",
+  "long_grau": "-42",
+  "long_min": "12",
+  "long_seg1": "24",
+  "long_seg2": "90",
+  "procedimento": "Autorização e Outorga de Direito de Uso (Poços Tubulares)",
+  "finalidade": {
+   "1": true,
+   "2": true,
+   "3": true,
+   "4": true,
+   "5": true,
+   "6": true,
+   "7": true,
+   "8": true,
+   "9": true,
+   "10": true
+  },
+  "descricao": "Uso da água para abastecimento público, aquicultura em tanque escavado, consumo humano, criação animal, indústria, mineração - outros processos extrativos, irrigação, mineração - extração de areia/cascalho em leito de rio, outras, termoelétrica no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "Concessionária (comp. Estaduais, empresa privada)",
+  "concessao": {
+   "numero": "71512",
+   "data_final": "2028-06-19"
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "FLORIANO",
+    "localidade": "Povoado Cana Brava",
+    "qtd_habitantes": "4226"
+   },
+   {
+    "municipio": "TERESINA",
+    "localidade": "Povoado Cana Brava",
+    "qtd_habitantes": "11998"
+   },
+   {
+    "municipio": "TERESINA",
+    "localidade": "Povoado Cana Brava",
+    "qtd_habitantes": "6933"
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "2.8",
+   "area_total_tanques": "8276",
+   "especies": {
+    "Piscicultura Pintado": "Piscicultura Pintado",
+    "Piscicultura Tambaqui": "Piscicultura Tambaqui",
+    "Carcinocultura (camarões e outros crustáceos)": "Carcinocultura (camarões e outros crustáceos)"
+   }
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "Pequeno Núcleo Populacional",
+    "qtd_pessoas_dia": "637"
+   },
+   {
+    "estabelecimento": "Escola Com lanchonete, sem ginásio e chuveiro",
+    "qtd_pessoas_dia": "769"
+   },
+   {
+    "estabelecimento": "Restaurante",
+    "qtd_pessoas_dia": "160"
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "Caprino ou Ovino",
+    "sistema_criacao": "Intensivo",
+    "numero_cabecas": "27025"
+   },
+   {
+    "especie": "Equino ou Asinino",
+    "sistema_criacao": "Intensivo",
+    "numero_cabecas": "11759"
+   },
+   {
+    "especie": "Galinha de postura",
+    "sistema_criacao": "Extensivo",
+    "numero_cabecas": "26987"
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "1011-2/01",
+    "producao_anual": "401134",
+    "unidade": "Milhares de unidades"
+   },
+   {
+    "tipologia": "1011-2/01",
+    "producao_anual": "493564",
+    "unidade": "Metro"
+   },
+   {
+    "tipologia": "1052-0/00",
+    "producao_anual": "209277",
+    "unidade": "Tonelada"
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "Sub-irrigação ",
+    "area": "10",
+    "cultura": "Citrus, cobertura de chão ativa ou invasoras (50% de dossel)"
+   },
+   {
+    "sistema": "Aspersão por sistema pivô central rebocável",
+    "area": "2.5",
+    "cultura": "Açaí"
+   },
+   {
+    "sistema": "Aspersão por sistema pivô central com LEPA",
+    "area": "37.25",
+    "cultura": "Coco Verde"
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "4664",
+   "proporcao": "2",
+   "umidade": "29"
+  },
+  "outros": [
+   {
+    "uso": "Sede de fazenda ou chácara ou sítio",
+    "descricao": "Atende a sede da propriedade"
+   },
+   {
+    "uso": "Condomínio",
+    "descricao": "Lavagem de pisos e equipamentos"
+   },
+   {
+    "uso": "Hortas, pomares, jardins, paisagismo (área < 1 ha)",
+    "descricao": "Atende a sede da propriedade"
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "Xisto Betuminoso",
+   "potencia": "12.5",
+   "producao": "4117"
+  }
+ },
+ "incompleto_1": {
+  "nome": "RAIMUNDO NONATO CARVALHO",
+  "cpf_cnpj": "29401965595",
+  "assunto": "Captação Superficial",
+  "municipio": "BOM JESUS",
+  "localidade": "Zona Rural",
+  "lat_grau": "-9",
+  "lat_min": "6",
+  "lat_seg1": "30",
+  "lat_seg2": "48",
+  "long_grau": "-44",
+  "long_min": "18",
+  "long_seg1": "46",
+  "long_seg2": "66",
+  "procedimento": "Regularização de Poço Tubular",
+  "finalidade": {
+   "7": true,
+   "4": true
+  },
+  "descricao": "Uso da água para irrigação, criação animal no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "incompleto_2": {
+  "nome": "LUZIA MARIA ARAÚJO",
+  "cpf_cnpj": "69340608810",
+  "assunto": "Diluição de Efluentes",
+  "municipio": "URUÇUÍ",
+  "localidade": "Data Riacho Fundo",
+  "lat_grau": "-7",
+  "lat_min": "13",
+  "lat_seg1": "9",
+  "lat_seg2": "76",
+  "long_grau": "-44",
+  "long_min": "32",
+  "long_seg1": "55",
+  "long_seg2": "89",
+  "procedimento": "Renovação de Outorga Preventiva",
+  "finalidade": {
+   "1": true,
+   "10": true,
+   "2": true
+  },
+  "descricao": "Uso da água para abastecimento público, termoelétrica, aquicultura em tanque escavado no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "",
+    "qtd_pessoas_dia": ""
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "coord_1": {
+  "nome": "JOÃO DA SILVA TESTE",
+  "cpf_cnpj": "35615951460",
+  "assunto": "Poço Tubular",
+  "municipio": "OEIRAS",
+  "localidade": "Assentamento Nova Esperança",
+  "lat_grau": "6",
+  "lat_min": "59",
+  "lat_seg1": "53",
+  "lat_seg2": "01",
+  "long_grau": "42",
+  "long_min": "6",
+  "long_seg1": "20",
+  "long_seg2": "90",
+  "procedimento": "Renovação de Outorga de Direito de Uso",
+  "finalidade": {
+   "3": true
+  },
+  "descricao": "Uso da água para consumo humano no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "Loja",
+    "qtd_pessoas_dia": "684"
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ },
+ "coord_2": {
+  "nome": "MARIA DAS GRAÇAS OCR",
+  "cpf_cnpj": "48236629970",
+  "assunto": "Captação Superficial",
+  "municipio": "SÃO RAIMUNDO NONATO",
+  "localidade": "Povoado Lagoa Seca",
+  "lat_grau": "9",
+  "lat_min": "1",
+  "lat_seg1": "8",
+  "lat_seg2": "",
+  "long_grau": "42",
+  "long_min": "42",
+  "long_seg1": "35",
+  "long_seg2": "",
+  "procedimento": "Renovação de Autorização e de Outorga Preventiva (Poços Tubulares)",
+  "finalidade": {
+   "3": true
+  },
+  "descricao": "Uso da água para consumo humano no imóvel, conforme demanda informada no SIGA.",
+  "prestador": "",
+  "concessao": {
+   "numero": "",
+   "data_final": ""
+  },
+  "abastecimentos_publicos": [
+   {
+    "municipio": "",
+    "localidade": "",
+    "qtd_habitantes": ""
+   }
+  ],
+  "aquicultura-escavado": {
+   "profundidade": "",
+   "area_total_tanques": "",
+   "especies": {}
+  },
+  "consumos_humanos": [
+   {
+    "estabelecimento": "Posto de Gasolina",
+    "qtd_pessoas_dia": "563"
+   }
+  ],
+  "criacoes_animais": [
+   {
+    "especie": "",
+    "sistema_criacao": "",
+    "numero_cabecas": ""
+   }
+  ],
+  "industrias": [
+   {
+    "tipologia": "",
+    "producao_anual": "",
+    "unidade": ""
+   }
+  ],
+  "irrigacoes": [
+   {
+    "sistema": "",
+    "area": "",
+    "cultura": ""
+   }
+  ],
+  "mineracao_areia": {
+   "producao": "",
+   "proporcao": "",
+   "umidade": ""
+  },
+  "outros": [
+   {
+    "uso": "",
+    "descricao": ""
+   }
+  ],
+  "termoeletricas": {
+   "combustivel": "",
+   "potencia": "",
+   "producao": ""
+  }
+ }
+}

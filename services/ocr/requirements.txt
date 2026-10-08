@@ -1,0 +1,24 @@
+# versões testadas (Python 3.12, Tesseract 5.3, PostgreSQL 16 + PostGIS 3.4)
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+pydantic-settings==2.15.0
+SQLAlchemy==2.1.1
+psycopg[binary]==3.3.6
+GeoAlchemy2==0.20.0
+alembic==1.20.0
+celery[redis]==5.6.3
+redis==6.4.0  # kombu[redis] 5.6.x exige redis<6.5
+boto3==1.43.106
+pymupdf==1.28.2
+opencv-python-headless==4.13.0.92
+numpy==2.4.4
+pillow==12.1.1
+pytesseract==0.3.13
+RapidFuzz==3.14.6
+zxing-cpp==3.1.1
+qrcode[pil]==8.2
+pyHanko==0.37.0
+pyhanko-certvalidator==0.32.1
+cryptography==50.0.2
+openpyxl==3.1.5

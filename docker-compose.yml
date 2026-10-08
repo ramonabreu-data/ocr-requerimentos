@@ -1,0 +1,118 @@
+# Base (produção): grava no banco de destino definido no .env (DESTINO_DB_* ou DATABASE_URL).
+#   docker compose -f docker-compose.yml up -d
+# Desenvolvimento (com Postgres/PostGIS e stub do SIGA): docker compose up  (lê também o override)
+name: ocr-requerimentos
+
+# Banco onde o schema ocr é gravado, lido do .env. DATABASE_URL, se definida, vale sobre as partes
+# DESTINO_DB_* (o serviço monta a URL a partir delas; a senha não precisa ser codificada).
+x-banco: &banco
+  DATABASE_URL: ${DATABASE_URL:-}
+  DESTINO_DB_HOST: ${DESTINO_DB_HOST:-}
+  DESTINO_DB_PORTA: ${DESTINO_DB_PORTA:-5432}
+  DESTINO_DB_NOME: ${DESTINO_DB_NOME:-}
+  DESTINO_DB_USUARIO: ${DESTINO_DB_USUARIO:-}
+  DESTINO_DB_SENHA: ${DESTINO_DB_SENHA:-}
+  DESTINO_DB_SSLMODE: ${DESTINO_DB_SSLMODE:-prefer}
+  CRIAR_VIEWS: ${CRIAR_VIEWS:-true}
+
+x-ocr: &ocr
+  build:
+    context: ./services/ocr
+    args:
+      COM_PADDLE: ${COM_PADDLE:-0}
+  image: ocr-requerimentos/servico:${VERSAO:-latest}
+  env_file: .env
+  environment:
+    <<: *banco
+    STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
+    S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+    CELERY_BROKER_URL: redis://redis:6379/2
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-ocr}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-ocr-segredo-troque}
+    volumes: [minio:/data]
+    ports: ["127.0.0.1:9001:9001"]  # console de administração só local
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      retries: 5
+
+  migrar:
+    <<: *ocr
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    <<: *ocr
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    command: ["uvicorn", "ocr_requerimentos.api.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--workers", "${API_WORKERS:-2}", "--proxy-headers"]
+    expose: ["8000"]
+
+  worker:
+    <<: *ocr
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    # escalar: docker compose up -d --scale worker=4
+    command: ["celery", "-A", "ocr_requerimentos.worker", "worker", "-Q", "ocr,padrao",
+              "--concurrency", "${WORKER_CONCORRENCIA:-2}", "--loglevel", "INFO"]
+    healthcheck: { disable: true }
+
+  watcher:
+    <<: *ocr
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    command: ["python", "-m", "ocr_requerimentos.watcher"]
+    environment:
+      <<: *banco
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      CELERY_BROKER_URL: redis://redis:6379/2
+      PASTA_MONITORADA: /data/entrada
+    volumes:
+      - ${PASTA_SCANNER:-./entrada}:/data/entrada
+    healthcheck: { disable: true }
+
+  web:
+    build: ./apps/web
+    image: ocr-requerimentos/web:${VERSAO:-latest}
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      API_URL: http://api:8000
+      API_KEY: ${API_KEY:-}
+    ports: ["${PORTA_WEB:-3000}:3000"]
+
+  flower:
+    profiles: ["monitor"]
+    image: mher/flower:2.0
+    command: ["celery", "--broker=redis://redis:6379/2", "flower", "--port=5555"]
+    ports: ["127.0.0.1:5555:5555"]
+    depends_on: [redis]
+
+volumes:
+  redis:
+  minio:

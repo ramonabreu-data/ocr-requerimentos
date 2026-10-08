@@ -1,0 +1,16 @@
+[project]
+name = "ocr-requerimentos"
+version = "1.0.0"
+description = "OCR de requerimentos do SIGA (SEMARH-PI)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "db: integração com PostgreSQL/PostGIS (requer TEST_DATABASE_URL)",
+  "lento: OCR de várias páginas",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120

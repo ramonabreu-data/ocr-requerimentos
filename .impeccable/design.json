@@ -1,0 +1,638 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-05T17:14:23.000317+00:00",
+  "title": "Design System: Conferência de Requerimentos — SEMARH-PI",
+  "extensions": {
+    "colorMeta": {
+      "fundo": {
+        "role": "neutral",
+        "displayName": "Fundo Cinza-Azulado",
+        "canonical": "#f1f4f8",
+        "tonalRamp": [
+          "#090b0e",
+          "#232528",
+          "#404245",
+          "#5f6165",
+          "#808286",
+          "#a2a5a9",
+          "#c6c9cd",
+          "#eceff3"
+        ]
+      },
+      "folha": {
+        "role": "neutral",
+        "displayName": "Folha Branca",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#1b2430",
+        "tonalRamp": [
+          "#050b16",
+          "#1d2632",
+          "#394350",
+          "#586270",
+          "#788392",
+          "#9ba6b6",
+          "#becada",
+          "#e3f0ff"
+        ]
+      },
+      "tinta-2": {
+        "role": "neutral",
+        "displayName": "Tinta Secundária",
+        "canonical": "#4d5969",
+        "tonalRamp": [
+          "#040b18",
+          "#1b2634",
+          "#374352",
+          "#566273",
+          "#778495",
+          "#99a6b8",
+          "#bdcadd",
+          "#e2f0ff"
+        ]
+      },
+      "linha": {
+        "role": "neutral",
+        "displayName": "Linha",
+        "canonical": "#c3ccd8",
+        "tonalRamp": [
+          "#060b13",
+          "#1f262f",
+          "#3b434c",
+          "#5a626c",
+          "#7b838e",
+          "#9da6b1",
+          "#c1cad6",
+          "#e6effc"
+        ]
+      },
+      "linha-suave": {
+        "role": "neutral",
+        "displayName": "Linha Suave",
+        "canonical": "#e2e7ee",
+        "tonalRamp": [
+          "#080b10",
+          "#22252a",
+          "#3e4248",
+          "#5d6268",
+          "#7e8389",
+          "#a1a5ac",
+          "#c5cad0",
+          "#eaeff6"
+        ]
+      },
+      "azul": {
+        "role": "primary",
+        "displayName": "Azul Institucional do Piauí",
+        "canonical": "#0b3d91",
+        "tonalRamp": [
+          "#010048",
+          "#00176b",
+          "#083b8f",
+          "#2b5db4",
+          "#4c80da",
+          "#6ea4ff",
+          "#91c9ff",
+          "#b5efff"
+        ]
+      },
+      "azul-hover": {
+        "role": "primary",
+        "displayName": "Azul de Pressão",
+        "canonical": "#093279",
+        "tonalRamp": [
+          "#000040",
+          "#001c62",
+          "#153d85",
+          "#345faa",
+          "#5481cf",
+          "#76a5f6",
+          "#99c9ff",
+          "#bdefff"
+        ]
+      },
+      "azul-escuro": {
+        "role": "primary",
+        "displayName": "Azul-Noite de Estado",
+        "canonical": "#06275c",
+        "tonalRamp": [
+          "#000235",
+          "#022155",
+          "#1f4077",
+          "#3d619b",
+          "#5d83c0",
+          "#7fa6e5",
+          "#a2cbff",
+          "#c6f0ff"
+        ]
+      },
+      "azul-claro": {
+        "role": "primary",
+        "displayName": "Azul-Papel",
+        "canonical": "#e7eef9",
+        "tonalRamp": [
+          "#070b12",
+          "#20252d",
+          "#3d424b",
+          "#5c626b",
+          "#7c838d",
+          "#9fa5b0",
+          "#c3cad4",
+          "#e8effa"
+        ]
+      },
+      "azul-medio": {
+        "role": "primary",
+        "displayName": "Azul-Bruma",
+        "canonical": "#c8d7f0",
+        "tonalRamp": [
+          "#030b1b",
+          "#1a2538",
+          "#364257",
+          "#556277",
+          "#75839a",
+          "#98a6be",
+          "#bbcae3",
+          "#e0efff"
+        ]
+      },
+      "verde": {
+        "role": "secondary",
+        "displayName": "Verde da Bandeira",
+        "canonical": "#00843d",
+        "tonalRamp": [
+          "#001700",
+          "#003500",
+          "#00550d",
+          "#007730",
+          "#2c9a52",
+          "#55be74",
+          "#7ce497",
+          "#a2ffbb"
+        ]
+      },
+      "verde-texto": {
+        "role": "secondary",
+        "displayName": "Verde-Texto",
+        "canonical": "#006630",
+        "tonalRamp": [
+          "#001500",
+          "#003300",
+          "#00521d",
+          "#1a743d",
+          "#43965d",
+          "#68ba7f",
+          "#8cdfa2",
+          "#b1ffc6"
+        ]
+      },
+      "verde-fundo": {
+        "role": "secondary",
+        "displayName": "Verde-Folha",
+        "canonical": "#e2f3e8",
+        "tonalRamp": [
+          "#040e07",
+          "#1c2921",
+          "#38463d",
+          "#57655c",
+          "#77877d",
+          "#9aaa9f",
+          "#bdcec3",
+          "#e2f3e8"
+        ]
+      },
+      "amarelo": {
+        "role": "tertiary",
+        "displayName": "Amarelo da Bandeira",
+        "canonical": "#ffcd00",
+        "tonalRamp": [
+          "#220000",
+          "#411800",
+          "#623800",
+          "#835900",
+          "#a67c00",
+          "#cb9f00",
+          "#f0c42d",
+          "#ffea5f"
+        ]
+      },
+      "marca": {
+        "role": "tertiary",
+        "displayName": "Marca-Texto",
+        "canonical": "#f2d21b",
+        "tonalRamp": [
+          "#1d0200",
+          "#3b1e00",
+          "#5a3d00",
+          "#7b5e00",
+          "#9d8000",
+          "#c1a400",
+          "#e6c931",
+          "#ffef61"
+        ]
+      },
+      "marca-borda": {
+        "role": "tertiary",
+        "displayName": "Borda de Marca-Texto",
+        "canonical": "#8a7600",
+        "tonalRamp": [
+          "#190600",
+          "#352200",
+          "#544000",
+          "#746000",
+          "#96821a",
+          "#b9a546",
+          "#deca6c",
+          "#ffef91"
+        ]
+      },
+      "atencao": {
+        "role": "semantic",
+        "displayName": "Âmbar de Atenção",
+        "canonical": "#9a5800",
+        "tonalRamp": [
+          "#280000",
+          "#4a0b00",
+          "#6c2e00",
+          "#904f00",
+          "#b47029",
+          "#da934f",
+          "#ffb773",
+          "#ffdd98"
+        ]
+      },
+      "atencao-fundo": {
+        "role": "semantic",
+        "displayName": "Fundo de Atenção",
+        "canonical": "#fff4d9",
+        "tonalRamp": [
+          "#120a00",
+          "#2c240e",
+          "#4a412b",
+          "#6a6049",
+          "#8b8269",
+          "#afa48b",
+          "#d3c8ae",
+          "#f9eed3"
+        ]
+      },
+      "atencao-borda": {
+        "role": "semantic",
+        "displayName": "Borda de Atenção",
+        "canonical": "#ecc56b",
+        "tonalRamp": [
+          "#1f0100",
+          "#3d1c00",
+          "#5d3b00",
+          "#7e5b00",
+          "#a17c17",
+          "#c59f44",
+          "#ebc46a",
+          "#ffe98f"
+        ]
+      },
+      "erro": {
+        "role": "semantic",
+        "displayName": "Vermelho de Erro",
+        "canonical": "#b3261e",
+        "tonalRamp": [
+          "#360000",
+          "#5c0000",
+          "#820000",
+          "#a92f26",
+          "#d15547",
+          "#f97969",
+          "#ff9d8c",
+          "#ffc3b0"
+        ]
+      },
+      "erro-fundo": {
+        "role": "semantic",
+        "displayName": "Fundo de Erro",
+        "canonical": "#fce9e7",
+        "tonalRamp": [
+          "#130807",
+          "#2f2120",
+          "#4d3e3c",
+          "#6d5d5b",
+          "#8f7e7c",
+          "#b2a09e",
+          "#d7c4c2",
+          "#fce9e7"
+        ]
+      },
+      "erro-borda": {
+        "role": "semantic",
+        "displayName": "Borda de Erro",
+        "canonical": "#eeb1ab",
+        "tonalRamp": [
+          "#220000",
+          "#421312",
+          "#63312e",
+          "#86514c",
+          "#aa716c",
+          "#cf948e",
+          "#f5b8b1",
+          "#ffddd6"
+        ]
+      },
+      "foco": {
+        "role": "semantic",
+        "displayName": "Âmbar de Foco",
+        "canonical": "#c2850c",
+        "tonalRamp": [
+          "#270000",
+          "#481000",
+          "#693200",
+          "#8c5200",
+          "#b07400",
+          "#d6982e",
+          "#fcbc58",
+          "#ffe27f"
+        ]
+      },
+      "visor-fundo": {
+        "role": "neutral",
+        "displayName": "Mesa do Visor",
+        "canonical": "#dfe5ee",
+        "tonalRamp": [
+          "#080b11",
+          "#21252c",
+          "#3e424a",
+          "#5c6269",
+          "#7d838b",
+          "#a0a5ae",
+          "#c4cad2",
+          "#e9eff8"
+        ]
+      },
+      "borda-entrada": {
+        "role": "neutral",
+        "displayName": "Borda de Entrada",
+        "canonical": "#8a96a8",
+        "tonalRamp": [
+          "#040b18",
+          "#1c2534",
+          "#384352",
+          "#576273",
+          "#778395",
+          "#9aa6b8",
+          "#bdcadd",
+          "#e2f0ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Nome do sistema",
+        "purpose": "Nome do sistema no cabeçalho institucional."
+      },
+      "headline": {
+        "displayName": "Título de página",
+        "purpose": "h1 em azul-noite."
+      },
+      "title": {
+        "displayName": "Título de seção",
+        "purpose": "h2 de seção e título do estado vazio."
+      },
+      "title-grupo": {
+        "displayName": "Título de grupo",
+        "purpose": "Cabeçalho dos grupos do formulário de conferência."
+      },
+      "body": {
+        "displayName": "Texto",
+        "purpose": "Texto corrente; descrições até 68ch."
+      },
+      "label": {
+        "displayName": "Rótulo",
+        "purpose": "Rótulos de campo."
+      },
+      "label-pequeno": {
+        "displayName": "Rótulo pequeno",
+        "purpose": "Situação, cabeçalho de tabela, contador, barra do governo."
+      },
+      "mono": {
+        "displayName": "Números extraídos",
+        "purpose": "CPF/CNPJ, coordenadas, áreas, datas; algarismos tabulares."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sombra-1",
+        "value": "0 1px 2px rgba(11,33,72,0.06), 0 2px 8px rgba(11,33,72,0.07)",
+        "purpose": "Repouso de cabeçalho, blocos, grupos e tabelas."
+      },
+      {
+        "name": "sombra-2",
+        "value": "0 2px 4px rgba(11,33,72,0.06), 0 8px 24px rgba(11,33,72,0.1)",
+        "purpose": "Link de pular para o conteúdo em foco."
+      },
+      {
+        "name": "folha",
+        "value": "0 1px 2px rgba(11,33,72,0.12), 0 4px 14px rgba(11,33,72,0.12)",
+        "purpose": "Página digitalizada sobre a mesa do visor."
+      },
+      {
+        "name": "barra-acoes",
+        "value": "0 -4px 18px rgba(11,33,72,0.12)",
+        "purpose": "Barra fixa de salvar/validar."
+      },
+      {
+        "name": "botao-hover",
+        "value": "0 2px 8px rgba(11,61,145,0.25)",
+        "purpose": "Hover do botão primário."
+      },
+      {
+        "name": "foco",
+        "value": "outline: 3px dashed #c2850c; outline-offset: 3px",
+        "purpose": "Foco de teclado global (anel tracejado âmbar)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "estado",
+        "value": "0.15s ease-out",
+        "purpose": "Cor, borda, fundo e sombra de botões, menu e campos."
+      },
+      {
+        "name": "pulsar",
+        "value": "1.2s ease-in-out infinite",
+        "purpose": "Ponto da situação recebido/processando."
+      },
+      {
+        "name": "riscar",
+        "value": "0.35s ease-out (clip-path da esquerda para a direita)",
+        "purpose": "Entrada do marca-texto; só com prefers-reduced-motion: no-preference."
+      },
+      {
+        "name": "soltar",
+        "value": "0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Ícone da zona de soltar ao arrastar arquivos."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "empilhar-conferencia",
+        "value": "1024px"
+      },
+      {
+        "name": "celular",
+        "value": "760px"
+      }
+    ],
+    "layout": {
+      "container": "1200px",
+      "container-largo": "1440px",
+      "faixa-bandeira": "linear-gradient(90deg, #00843d 0 50%, #ffcd00 50% 100%), 4px"
+    }
+  },
+  "components": [
+    {
+      "name": "Botão primário",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela: Enviar arquivos, Validar.",
+      "html": "<button class=\"ds-botao\">Validar</button>",
+      "css": ".ds-botao{font-family: var(--fonte);font-size:1rem;font-weight:700;border:2px solid var(--azul);background:var(--azul);color:#fff;min-height:2.5rem;padding:.4rem 1.4rem;border-radius:var(--r-pilula);cursor:pointer;display:inline-flex;align-items:center;gap:.45rem;line-height:1.2;transition:background-color .15s ease-out,border-color .15s ease-out,box-shadow .15s ease-out}.ds-botao:hover{background:var(--azul-hover);border-color:var(--azul-hover);box-shadow:0 2px 8px rgba(11,61,145,.25)}.ds-botao:active{background:var(--azul-escuro);border-color:var(--azul-escuro);box-shadow:none}.ds-botao:focus-visible{outline:3px dashed var(--foco);outline-offset:3px}"
+    },
+    {
+      "name": "Botão secundário",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ações de apoio: Abrir original, Ler de novo.",
+      "html": "<button class=\"ds-botao-sec\">Abrir original</button>",
+      "css": ".ds-botao-sec{font-family: var(--fonte);font-size:1rem;font-weight:700;border:2px solid var(--azul);background:var(--folha);color:var(--azul);min-height:2.5rem;padding:.4rem 1.4rem;border-radius:var(--r-pilula);cursor:pointer;line-height:1.2;transition:background-color .15s ease-out,color .15s ease-out}.ds-botao-sec:hover{background:var(--azul-claro);color:var(--azul-hover)}.ds-botao-sec:focus-visible{outline:3px dashed var(--foco);outline-offset:3px}"
+    },
+    {
+      "name": "Botão de texto",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Ação leve em linha, como Remover.",
+      "html": "<button class=\"ds-botao-texto\">Remover</button>",
+      "css": ".ds-botao-texto{font-family: var(--fonte);font-size:1rem;font-weight:700;border:2px solid transparent;background:transparent;color:var(--azul);min-height:2.5rem;padding:.4rem .7rem;border-radius:var(--r-pilula);cursor:pointer;line-height:1.2;transition:background-color .15s ease-out}.ds-botao-texto:hover{background:var(--azul-claro);color:var(--azul-hover)}.ds-botao-texto:focus-visible{outline:3px dashed var(--foco);outline-offset:3px}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de formulário com rótulo 700 acima; mono para números.",
+      "html": "<div class=\"ds-campo\"><label for=\"ds-cpf\">CPF/CNPJ</label><input id=\"ds-cpf\" class=\"ds-mono\" value=\"22.911.207/0001-50\"></div>",
+      "css": ".ds-campo{font-family: var(--fonte);color:var(--tinta)}.ds-campo label{display:block;font-weight:700;font-size:.9rem;margin-bottom:.35rem}.ds-campo input{font:inherit;width:100%;min-height:2.5rem;border:1px solid #8a96a8;border-radius:var(--r-pequeno);padding:.45rem .75rem;background:#fff;color:var(--tinta);transition:border-color .15s ease-out,box-shadow .15s ease-out}.ds-campo input:hover{border-color:var(--azul)}.ds-campo input:focus{border-color:var(--azul);box-shadow:0 0 0 3px var(--azul-medio);outline:none}.ds-campo input:focus-visible{outline:3px dashed var(--foco);outline-offset:3px}.ds-mono{font-family:var(--fonte-mono)!important;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Situação em pílula",
+      "kind": "chip",
+      "refersTo": "status-extraido",
+      "description": "Situação do documento no semáforo (vermelho, amarelo, verde), com ponto na cor do texto.",
+      "html": "<span class=\"ds-status ds-status--revisao\">Com possíveis divergências</span> <span class=\"ds-status ds-status--ok\">Pronto para validar</span> <span class=\"ds-status ds-status--validado\">Validado</span> <span class=\"ds-status ds-status--proc\">Processando</span>",
+      "css": ".ds-status{font-family: var(--fonte);display:inline-flex;align-items:center;gap:.4rem;font-size:.8125rem;font-weight:700;white-space:nowrap;padding:.15rem .65rem .15rem .55rem;border-radius:var(--r-pilula)}.ds-status::before{content:'';width:.5rem;height:.5rem;border-radius:50%;background:currentColor}.ds-status--ok{background:#ffefa8;color:#6e4e00}.ds-status--revisao{background:var(--erro-fundo);color:var(--erro)}.ds-status--validado{background:var(--verde);color:#fff}.ds-status--proc{background:var(--azul-claro);color:var(--azul)}.ds-status--proc::before{animation:ds-pulsar 1.2s ease-in-out infinite}@keyframes ds-pulsar{50%{opacity:.25}}"
+    },
+    {
+      "name": "Moldura governamental",
+      "kind": "nav",
+      "refersTo": "barra-governo",
+      "description": "Barra do governo, faixa da bandeira, cabeçalho e menu com item ativo.",
+      "html": "<div class=\"ds-gov\"><span>Governo do Estado do Piauí</span><span>SEMARH</span></div><header class=\"ds-topo\"><div class=\"ds-topo__nome\">Conferência de Requerimentos<small>Secretaria do Meio Ambiente e Recursos Hídricos</small></div><nav class=\"ds-nav\"><a href=\"#\" aria-current=\"page\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 16V4m0 0L7 9m5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4\"/></svg>Enviar</a><a href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 4h6v3H9zM8 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-2M9 14l2 2 4-4\"/></svg>Revisão<span class=\"ds-contador\">3</span></a></nav></header>",
+      "css": ".ds-gov{font-family: var(--fonte);background:var(--azul-escuro);color:#fff;font-size:.8125rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.45rem 1.5rem;display:flex;justify-content:space-between}.ds-gov span+span{color:#d6e2f5}.ds-topo{font-family: var(--fonte);background:var(--folha);position:relative;padding-top:4px;box-shadow:var(--sombra-1)}.ds-topo::before{content:'';position:absolute;inset:0 0 auto;height:4px;background:var(--faixa)}.ds-topo__nome{display:flex;flex-direction:column;padding:1rem 1.5rem .9rem;font-size:1.44rem;font-weight:700;line-height:1.15;color:var(--azul-escuro);letter-spacing:-.01em}.ds-topo__nome small{font-size:.9rem;font-weight:400;color:var(--tinta-2);letter-spacing:0;margin-top:.2rem}.ds-nav{display:flex;gap:.25rem;padding:0 .5rem;border-top:1px solid var(--linha-suave)}.ds-nav a{color:var(--tinta);text-decoration:none;font-weight:700;padding:.85rem 1rem .75rem;display:inline-flex;align-items:center;gap:.55rem;border-bottom:4px solid transparent;transition:color .15s ease-out,background-color .15s ease-out}.ds-nav a svg{color:var(--tinta-2)}.ds-nav a:hover{color:var(--azul);background:var(--azul-claro)}.ds-nav a:hover svg,.ds-nav a[aria-current=page] svg{color:var(--azul)}.ds-nav a[aria-current=page]{color:var(--azul);border-bottom-color:var(--azul)}.ds-nav a:focus-visible{outline:3px dashed var(--foco);outline-offset:-4px}.ds-contador{background:var(--amarelo);color:var(--azul-escuro);font-size:.8125rem;font-weight:700;border-radius:var(--r-pilula);padding:.05rem .5rem;min-width:1.6rem;text-align:center}"
+    },
+    {
+      "name": "Grupo de conferência",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Cartão branco com título em faixa e grade de campos.",
+      "html": "<section class=\"ds-grupo\"><h2>Requerente</h2><p>Nome do requerente e CPF/CNPJ conferidos com a folha.</p></section>",
+      "css": ".ds-grupo{font-family: var(--fonte);background:var(--folha);border-radius:var(--r-grande);padding:0 1.4rem 1.4rem;box-shadow:var(--sombra-1);color:var(--tinta)}.ds-grupo h2{font-size:1rem;font-weight:700;color:var(--azul-escuro);margin:0 -1.4rem 1.1rem;padding:.85rem 1.4rem;border-bottom:1px solid var(--linha-suave)}.ds-grupo p{margin:0}"
+    },
+    {
+      "name": "Aviso",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Mensagem com ícone mascarado; âmbar, erro, sucesso ou informação.",
+      "html": "<div class=\"ds-aviso\">Nenhuma pendência. Confira os campos com a folha ao lado e valide.</div>",
+      "css": ".ds-aviso{font-family: var(--fonte);position:relative;background:var(--verde-fundo);border:1px solid #a9d8bb;padding:.9rem 1.1rem .9rem 3rem;border-radius:var(--r-medio);color:var(--tinta)}.ds-aviso::before{content:'';position:absolute;left:1rem;top:.95rem;width:1.25rem;height:1.25rem;border:2px solid var(--verde-texto);border-radius:50%;box-sizing:border-box}"
+    },
+    {
+      "name": "Marca-texto sobre a folha",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Assinatura: o trecho da folha do campo em foco recebe o amarelo; demais marcas são sublinhados.",
+      "html": "<p class=\"ds-folha\">inscrito sob o CPF/CNPJ nº <span class=\"ds-marca ds-marca--ativa\">22.911.207/0001-50</span>, no município de <span class=\"ds-marca ds-marca--ok\">FLORIANO</span>.</p>",
+      "css": ".ds-folha{font-family:Arial,sans-serif;background:#fff;padding:1rem;box-shadow:0 1px 2px rgba(11,33,72,.12),0 4px 14px rgba(11,33,72,.12)}.ds-marca{border-bottom:3px solid transparent}.ds-marca--ok{border-bottom-color:rgba(0,132,61,.5)}.ds-marca--ativa{background:rgba(242,210,27,.5);mix-blend-mode:multiply;border-bottom-color:#8a7600;border-radius:2px;box-shadow:0 0 0 4px rgba(242,210,27,.35);animation:ds-riscar .35s ease-out}@keyframes ds-riscar{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Repartição Bem Sinalizada",
+    "overview": "Um sistema de Estado que se reconhece em um segundo: barra do Governo do Piauí no topo, faixa verde e amarela da bandeira, cabeçalho institucional branco com o nome do sistema, menu com ícones, trilha \"Início › Seção › Item\" e rodapé do órgão em azul-escuro. É a estrutura dos serviços de governo digital brasileiros traduzida nas cores do Piauí, e é ela que dá ao técnico a certeza de estar num sistema oficial.\n\nDentro dessa moldura, a interface é densa e calma: fundo cinza-azulado claro, superfícies brancas de cantos generosos com sombra azulada difusa, ações em pílula azul. Na tela de conferência a folha digitalizada é protagonista; o formulário aponta para ela, e o amarelo de marca-texto liga o campo em foco ao trecho exato da folha. Nada de painel escuro e quadrado: o sistema anterior era um \"painel SaaS\" e foi recusado.\n\nA tipografia é uma família só, Atkinson Hyperlegible, escolhida porque distingue 0/O e 1/l/I, que é exatamente o trabalho de quem confere um OCR. A versão mono aparece apenas nos valores numéricos extraídos.",
+    "keyCharacteristics": [
+      "Moldura governamental fixa: barra do governo, faixa da bandeira (4px), cabeçalho, menu, trilha, rodapé.",
+      "Azul institucional conduz toda ação e navegação; verde e amarelo são fio de identidade e sinal de sucesso.",
+      "Superfícies brancas sobre fundo frio, com sombra suave tingida de azul.",
+      "Pílula em tudo que é ação ou rótulo de situação; retângulo arredondado em tudo que é conteúdo.",
+      "Foco tracejado âmbar, visível sobre azul e sobre branco.",
+      "Uma família tipográfica de alta legibilidade, mono só para números."
+    ],
+    "rules": [
+      {
+        "name": "A Regra do Azul que Age",
+        "body": "Se é clicável, é azul institucional; se é azul cheio, é clicável ou é a situação \"validado\". Nenhum outro matiz conduz ação.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra da Bandeira como Fio",
+        "body": "Verde e amarelo da bandeira aparecem como faixa de 4px (topo do cabeçalho e topo do rodapé), em sucesso e no contador de pendências. Nunca como fundo de área nem como cor de botão.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra do Marca-Texto Único",
+        "body": "O amarelo de marca-texto pertence a um só campo por vez: o que está em foco. Pendências na folha usam sublinhado âmbar ou vermelho, nunca amarelo.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra do Zero Inconfundível",
+        "body": "Todo valor numérico extraído é composto em Atkinson Hyperlegible Mono com algarismos tabulares. Texto corrido nunca vai em mono.",
+        "section": "typography"
+      },
+      {
+        "name": "A Regra de Uma Família",
+        "body": "Não se introduz segunda família de exibição; peso e cor fazem a hierarquia.",
+        "section": "typography"
+      },
+      {
+        "name": "A Regra do Cartão Único",
+        "body": "Tabela dentro de bloco ou grupo perde sombra, raio e fundo; não existe cartão dentro de cartão.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do manter a moldura governamental completa em toda rota: barra do governo, faixa da bandeira, cabeçalho, menu, trilha, rodapé.",
+      "Do usar pílula azul para toda ação e retângulo de 14px com sombra de repouso para todo conteúdo.",
+      "Do compor CPF, coordenadas, áreas e datas em Atkinson Hyperlegible Mono tabular.",
+      "Do usar o anel tracejado âmbar (3px, offset 3px) como foco de teclado em todo elemento interativo.",
+      "Do expressar estados em trios fundo claro / texto escuro / borda média, com texto que nomeia o estado.",
+      "Do empilhar linhas de itens repetidos em blocos rotulados no celular, em vez de forçar rolagem horizontal.",
+      "Do tingir toda sombra com o azul-noite (rgba 11,33,72)."
+    ],
+    "donts": [
+      "Don't voltar ao \"painel SaaS\" escuro e quadrado que este sistema substituiu.",
+      "Don't desenhar, imitar ou aproximar a marca oficial do Governo ou da SEMARH; sem arquivo de logo, o nome do órgão vai escrito.",
+      "Don't usar verde ou amarelo da bandeira como cor de botão ou fundo de área.",
+      "Don't usar o amarelo de marca-texto para nada além do campo em foco.",
+      "Don't colocar tabela-cartão dentro de cartão.",
+      "Don't introduzir segunda família tipográfica ou ícones de fonte/emoji; ícones novos seguem o traço 24×24/2.",
+      "Don't deixar um valor numérico extraído quebrar linha ou aparecer em fonte proporcional."
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+# motor opcional (MOTOR_OCR=paddle). Imagem fica ~1,5 GB maior.
+paddlepaddle==2.6.2
+paddleocr==2.8.1
