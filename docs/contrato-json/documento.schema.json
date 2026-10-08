@@ -1,0 +1,1332 @@
+{
+  "$defs": {
+    "ArquivoOriginal": {
+      "additionalProperties": false,
+      "properties": {
+        "nome_original": {
+          "title": "Nome Original",
+          "type": "string"
+        },
+        "chave": {
+          "description": "Onde o arquivo está no armazenamento.",
+          "title": "Chave",
+          "type": "string"
+        },
+        "content_type": {
+          "title": "Content Type",
+          "type": "string"
+        },
+        "tamanho_bytes": {
+          "minimum": 0,
+          "title": "Tamanho Bytes",
+          "type": "integer"
+        },
+        "sha256": {
+          "description": "O mesmo arquivo nunca é lido duas vezes.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nome_original",
+        "chave",
+        "content_type",
+        "tamanho_bytes",
+        "sha256"
+      ],
+      "title": "ArquivoOriginal",
+      "type": "object"
+    },
+    "Assinatura": {
+      "additionalProperties": false,
+      "properties": {
+        "tipo": {
+          "anyOf": [
+            {
+              "enum": [
+                "digital",
+                "manuscrita",
+                "ausente",
+                "indeterminada"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tipo"
+        },
+        "detalhes": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detalhes"
+        }
+      },
+      "title": "Assinatura",
+      "type": "object"
+    },
+    "Campo": {
+      "additionalProperties": false,
+      "description": "Um campo do requerimento. `indice` diferencia itens de listas: posição da finalidade, linha da\ntabela de irrigação ou item dos detalhes de uma finalidade.",
+      "properties": {
+        "campo": {
+          "minLength": 1,
+          "title": "Campo",
+          "type": "string"
+        },
+        "indice": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indice"
+        },
+        "valor_atual": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Texto atual do campo: o lido pelo OCR ou, se `corrigido_manualmente`, o digitado na revisão.",
+          "title": "Valor Atual"
+        },
+        "valor_atual_normalizado": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "valor_atual depois da normalização (CPF com máscara, coordenada em graus decimais, nome da lista do SIGA...).",
+          "title": "Valor Atual Normalizado"
+        },
+        "confianca_atual": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Confiança do valor atual; 100 quando corrigido à mão.",
+          "title": "Confianca Atual"
+        },
+        "corrigido_manualmente": {
+          "default": false,
+          "title": "Corrigido Manualmente",
+          "type": "boolean"
+        },
+        "leitura_original_ocr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeituraOriginalOcr"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Leitura original do OCR; nula quando o campo não foi lido e foi incluído na revisão."
+        },
+        "local_na_folha": {
+          "$ref": "#/$defs/LocalNaFolha"
+        },
+        "validacao": {
+          "$ref": "#/$defs/ValidacaoCampo"
+        }
+      },
+      "required": [
+        "campo",
+        "valor_atual",
+        "valor_atual_normalizado",
+        "confianca_atual",
+        "leitura_original_ocr"
+      ],
+      "title": "Campo",
+      "type": "object"
+    },
+    "Finalidade": {
+      "additionalProperties": false,
+      "properties": {
+        "texto": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Texto"
+        },
+        "tipo_finalidade_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "outorga_tipofinalidadeuso.id no SIGA.",
+          "title": "Tipo Finalidade Id"
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confianca"
+        },
+        "valido": {
+          "default": false,
+          "title": "Valido",
+          "type": "boolean"
+        },
+        "chave": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Definição da finalidade (extracao/finalidades.py), ex.: criacao_animal.",
+          "title": "Chave"
+        },
+        "detalhes": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Dados próprios da finalidade, já normalizados.",
+          "title": "Detalhes"
+        }
+      },
+      "required": [
+        "texto"
+      ],
+      "title": "Finalidade",
+      "type": "object"
+    },
+    "Leitura": {
+      "additionalProperties": false,
+      "description": "Como a última leitura foi feita (para comparar versões do pipeline nas análises de acurácia).",
+      "properties": {
+        "versao_pipeline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Versao Pipeline"
+        },
+        "configuracao": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Configuracao"
+        },
+        "tipo_entrada": {
+          "anyOf": [
+            {
+              "enum": [
+                "pdf_texto",
+                "pdf_imagem",
+                "imagem"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tipo Entrada"
+        },
+        "metodo_extracao": {
+          "anyOf": [
+            {
+              "enum": [
+                "texto_nativo",
+                "ocr",
+                "qrcode+texto_nativo",
+                "qrcode+ocr"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metodo Extracao"
+        },
+        "paginas": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paginas"
+        },
+        "tentativas": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Tentativas",
+          "type": "integer"
+        },
+        "duracao_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duracao Ms"
+        }
+      },
+      "title": "Leitura",
+      "type": "object"
+    },
+    "LeituraOriginalOcr": {
+      "additionalProperties": false,
+      "description": "O que o OCR leu neste campo na última leitura do documento, antes de qualquer correção manual.\nNão muda quando o revisor corrige o campo: é a base das análises de acurácia.",
+      "properties": {
+        "valor_lido": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Texto lido pelo OCR (ou do PDF com texto), sem correção.",
+          "title": "Valor Lido"
+        },
+        "confianca_ocr": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Confiança (0–100) da leitura pelo OCR.",
+          "title": "Confianca Ocr"
+        }
+      },
+      "required": [
+        "valor_lido",
+        "confianca_ocr"
+      ],
+      "title": "LeituraOriginalOcr",
+      "type": "object"
+    },
+    "LinhaIrrigacao": {
+      "additionalProperties": false,
+      "properties": {
+        "ordem": {
+          "minimum": 1,
+          "title": "Ordem",
+          "type": "integer"
+        },
+        "sistema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sistema"
+        },
+        "sistema_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Posição (1, 2, ...) na lista de sistemas do formulário.",
+          "title": "Sistema Id"
+        },
+        "area_ha": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Ha"
+        },
+        "cultura": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cultura"
+        },
+        "cultura_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Posição (1, 2, ...) na lista de culturas do formulário.",
+          "title": "Cultura Id"
+        },
+        "confianca": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confianca"
+        },
+        "valido": {
+          "default": false,
+          "title": "Valido",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ordem",
+        "sistema",
+        "cultura"
+      ],
+      "title": "LinhaIrrigacao",
+      "type": "object"
+    },
+    "LocalNaFolha": {
+      "additionalProperties": false,
+      "properties": {
+        "pagina": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Página do documento (1 = primeira).",
+          "title": "Pagina"
+        },
+        "caixa": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Retângulo [x0, y0, x1, y1] onde o campo foi lido, em pixels da imagem da página (300 dpi).",
+          "title": "Caixa"
+        }
+      },
+      "title": "LocalNaFolha",
+      "type": "object"
+    },
+    "PaginaLida": {
+      "additionalProperties": false,
+      "properties": {
+        "numero": {
+          "minimum": 1,
+          "title": "Numero",
+          "type": "integer"
+        },
+        "largura": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Largura"
+        },
+        "altura": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Altura"
+        },
+        "imagem_chave": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Imagem corrigida da página no armazenamento.",
+          "title": "Imagem Chave"
+        },
+        "angulo_correcao": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angulo Correcao"
+        },
+        "metodo": {
+          "anyOf": [
+            {
+              "enum": [
+                "texto_nativo",
+                "ocr"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metodo"
+        },
+        "motor_ocr": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Motor Ocr"
+        },
+        "confianca_media": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confianca Media"
+        }
+      },
+      "required": [
+        "numero"
+      ],
+      "title": "PaginaLida",
+      "type": "object"
+    },
+    "QrCode": {
+      "additionalProperties": false,
+      "properties": {
+        "conteudo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conteudo"
+        },
+        "processo_uuid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Processo Uuid"
+        },
+        "processo_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "protocolo_processo.id no SIGA.",
+          "title": "Processo Id"
+        }
+      },
+      "title": "QrCode",
+      "type": "object"
+    },
+    "Requerimento": {
+      "additionalProperties": false,
+      "description": "Dados extraídos (valor atual de cada campo, já normalizado) e o estado da conferência.",
+      "properties": {
+        "requerente_nome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requerente Nome"
+        },
+        "cpf_cnpj": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9./-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cpf Cnpj"
+        },
+        "tipo_pessoa": {
+          "anyOf": [
+            {
+              "enum": [
+                "F",
+                "J"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tipo Pessoa"
+        },
+        "pessoa_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "core_pessoa.id no SIGA.",
+          "title": "Pessoa Id"
+        },
+        "procedimento": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Procedimento"
+        },
+        "procedimento_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Procedimento Id"
+        },
+        "tipo_intervencao": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tipo Intervencao"
+        },
+        "tipo_intervencao_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tipo Intervencao Id"
+        },
+        "municipio": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Municipio"
+        },
+        "municipio_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Municipio Id"
+        },
+        "localidade": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Localidade"
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Graus decimais, SIRGAS 2000 (srid).",
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
+        "latitude_texto": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Coordenada como escrita no documento.",
+          "title": "Latitude Texto"
+        },
+        "longitude_texto": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude Texto"
+        },
+        "srid": {
+          "default": 4674,
+          "title": "Srid",
+          "type": "integer"
+        },
+        "descricao_usos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Descricao Usos"
+        },
+        "assinante_nome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assinante Nome"
+        },
+        "data_documento": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Documento"
+        },
+        "finalidades": {
+          "items": {
+            "$ref": "#/$defs/Finalidade"
+          },
+          "title": "Finalidades",
+          "type": "array"
+        },
+        "irrigacao": {
+          "items": {
+            "$ref": "#/$defs/LinhaIrrigacao"
+          },
+          "title": "Irrigacao",
+          "type": "array"
+        },
+        "confianca_geral": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confianca Geral"
+        },
+        "pendencias": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pendencias",
+          "type": "array"
+        },
+        "avisos": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Avisos",
+          "type": "array"
+        },
+        "validacao": {
+          "$ref": "#/$defs/Validacao"
+        },
+        "versao": {
+          "default": 1,
+          "description": "Sobe a cada gravação; usada para recusar edição concorrente (409).",
+          "minimum": 1,
+          "title": "Versao",
+          "type": "integer"
+        },
+        "campos": {
+          "description": "Um item por campo lido: confiança, leitura original e posição.",
+          "items": {
+            "$ref": "#/$defs/Campo"
+          },
+          "title": "Campos",
+          "type": "array"
+        },
+        "criado_em": {
+          "format": "date-time",
+          "title": "Criado Em",
+          "type": "string"
+        },
+        "atualizado_em": {
+          "format": "date-time",
+          "title": "Atualizado Em",
+          "type": "string"
+        }
+      },
+      "title": "Requerimento",
+      "type": "object"
+    },
+    "Revisao": {
+      "additionalProperties": false,
+      "description": "Uma entrada do histórico. `tipo`:\n- correcao: o revisor mudou `campo` de `valor_anterior` para `valor_novo`;\n- validacao_com_pendencias: validado mesmo com pendências; `valor_anterior` = pendências na hora,\n  `valor_novo` = justificativa;\n- reprocessamento: o documento foi lido de novo e as correções manuais foram reaplicadas.",
+      "properties": {
+        "em": {
+          "format": "date-time",
+          "title": "Em",
+          "type": "string"
+        },
+        "usuario_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usuario Id"
+        },
+        "tipo": {
+          "enum": [
+            "correcao",
+            "validacao_com_pendencias",
+            "reprocessamento"
+          ],
+          "title": "Tipo",
+          "type": "string"
+        },
+        "campo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Campo"
+        },
+        "valor_anterior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valor Anterior"
+        },
+        "valor_novo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valor Novo"
+        }
+      },
+      "required": [
+        "tipo"
+      ],
+      "title": "Revisao",
+      "type": "object"
+    },
+    "Validacao": {
+      "additionalProperties": false,
+      "properties": {
+        "situacao": {
+          "default": "pendente",
+          "enum": [
+            "pendente",
+            "validado"
+          ],
+          "title": "Situacao",
+          "type": "string"
+        },
+        "validado_por_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validado Por Id"
+        },
+        "validado_em": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validado Em"
+        }
+      },
+      "title": "Validacao",
+      "type": "object"
+    },
+    "ValidacaoCampo": {
+      "additionalProperties": false,
+      "properties": {
+        "valido": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "O valor atual passou nas regras (formato, listas do SIGA...).",
+          "title": "Valido"
+        },
+        "obrigatorio": {
+          "default": false,
+          "title": "Obrigatorio",
+          "type": "boolean"
+        },
+        "mensagem": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Motivo da pendência ou aviso, quando há.",
+          "title": "Mensagem"
+        }
+      },
+      "title": "ValidacaoCampo",
+      "type": "object"
+    },
+    "VinculoLote": {
+      "additionalProperties": false,
+      "properties": {
+        "lote_uuid": {
+          "title": "Lote Uuid",
+          "type": "string"
+        },
+        "nome_arquivo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nome Arquivo"
+        },
+        "em": {
+          "format": "date-time",
+          "title": "Em",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lote_uuid"
+      ],
+      "title": "VinculoLote",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_versao": {
+      "default": 1,
+      "title": "Schema Versao",
+      "type": "integer"
+    },
+    "uuid": {
+      "title": "Uuid",
+      "type": "string"
+    },
+    "status": {
+      "default": "recebido",
+      "enum": [
+        "recebido",
+        "processando",
+        "extraido",
+        "revisao",
+        "validado",
+        "erro",
+        "dividido"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "erro": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Erro"
+    },
+    "arquivo": {
+      "$ref": "#/$defs/ArquivoOriginal"
+    },
+    "lote_origem_uuid": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Lote em que o arquivo chegou pela primeira vez.",
+      "title": "Lote Origem Uuid"
+    },
+    "lotes": {
+      "description": "Todos os lotes de que faz parte (reenvio entra no novo lote).",
+      "items": {
+        "$ref": "#/$defs/VinculoLote"
+      },
+      "title": "Lotes",
+      "type": "array"
+    },
+    "documento_pai_uuid": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Arquivo com vários requerimentos de onde esta parte saiu.",
+      "title": "Documento Pai Uuid"
+    },
+    "pagina_inicial": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Página do arquivo original onde esta parte começa.",
+      "title": "Pagina Inicial"
+    },
+    "partes": {
+      "description": "Partes criadas quando o arquivo foi dividido.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Partes",
+      "type": "array"
+    },
+    "leitura": {
+      "$ref": "#/$defs/Leitura"
+    },
+    "assinatura": {
+      "$ref": "#/$defs/Assinatura"
+    },
+    "qr_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QrCode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "paginas_lidas": {
+      "items": {
+        "$ref": "#/$defs/PaginaLida"
+      },
+      "title": "Paginas Lidas",
+      "type": "array"
+    },
+    "requerimento": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Requerimento"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "historico_de_revisoes": {
+      "items": {
+        "$ref": "#/$defs/Revisao"
+      },
+      "title": "Historico De Revisoes",
+      "type": "array"
+    },
+    "criado_por_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Criado Por Id"
+    },
+    "criado_em": {
+      "format": "date-time",
+      "title": "Criado Em",
+      "type": "string"
+    },
+    "atualizado_em": {
+      "format": "date-time",
+      "title": "Atualizado Em",
+      "type": "string"
+    }
+  },
+  "required": [
+    "uuid",
+    "arquivo"
+  ],
+  "title": "Documento",
+  "type": "object"
+}

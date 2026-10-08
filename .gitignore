@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 entrada/*
 !entrada/.gitkeep
+.env.bak*

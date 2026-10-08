@@ -1,4 +1,4 @@
-"""Integração com PostgreSQL/PostGIS: API, persistência, lotes e exportação."""
+"""Integração com o SIGA (PostgreSQL/PostGIS, só leitura): API, gravação em JSON, lotes e exportação."""
 import io
 import zipfile
 
@@ -18,6 +18,12 @@ def _detalhe(cliente, uid):
     r = cliente.get(f"/documentos/{uid}")
     assert r.status_code == 200, r.text
     return r.json()
+
+
+def _json(repo, uid):
+    import json
+
+    return json.loads(repo.store.ler(f"dados/documentos/{uid}.json"))
 
 
 def _campo(det, nome, indice=None):
@@ -235,7 +241,7 @@ def test_uuid_invalido(cliente):
     assert cliente.get("/documentos/nao-e-uuid").status_code == 404
 
 
-# ------------------------------------------------------------------ CT-86..89: detalhes das finalidades no banco
+# ------------------------------------------------------------------ CT-86..89: detalhes das finalidades gravados
 FORM = F.__file__.rsplit("/", 1)[0] + "/fixtures/formulario/"
 
 
@@ -248,9 +254,7 @@ def _fin(d, chave):
 
 
 @pytest.mark.parametrize("nome", ["todas_1", "todas_2"])
-def test_ct86_detalhes_gravados(cliente, banco, nome):
-    from sqlalchemy import text
-
+def test_ct86_detalhes_gravados(cliente, limpar, nome):
     uid = _enviar(cliente, _pdf_form(nome), f"{nome}.pdf").json()["uuid"]
     d = _detalhe(cliente, uid)
     assert d["status"] == "extraido", d["requerimento"]["pendencias"]
@@ -261,11 +265,8 @@ def test_ct86_detalhes_gravados(cliente, banco, nome):
     cab = [c for c in d["requerimento"]["campos"] if c["campo"] == "criacao_animal.cabecas"]
     assert [c["indice"] for c in cab] == [1, 2, 3][: len(cab)] and all(c["bbox"] for c in cab)
     assert _campo(d, "termoeletrica.potencia")["rotulo"] == "Termoelétrica — Potência Instalada (MW)"
-    with banco.connect() as c:
-        chaves = c.execute(text(
-            "SELECT f.chave, f.detalhes FROM ocr.requerimento_finalidade f "
-            "JOIN ocr.requerimento r ON r.id = f.requerimento_id JOIN ocr.documento d ON d.id = r.documento_id "
-            "WHERE d.uuid = CAST(:u AS uuid) ORDER BY f.id"), {"u": uid}).all()
+    gravado = _json(limpar, uid)  # o arquivo no armazenamento, não a resposta da API
+    chaves = [(f["chave"], f["detalhes"]) for f in gravado["requerimento"]["finalidades"]]
     assert [k for k, _ in chaves][:2] == ["abastecimento_publico", "aquicultura_tanque"]
     assert dict(chaves)["termoeletrica"]["combustivel"]
 
@@ -396,39 +397,49 @@ def test_ct94_versao_concorrente(cliente, pdf_exemplo):
     assert cliente.patch(f"/documentos/{uid}/correcoes", json={"campos": {"localidade": "Outra"}}).status_code == 200
 
 
-def test_ct95_sem_edicao_durante_leitura(cliente, banco, pdf_exemplo):
-    from sqlalchemy import text
-
+def test_ct95_sem_edicao_durante_leitura(cliente, limpar, pdf_exemplo):
     uid = _enviar(cliente, pdf_exemplo).json()["uuid"]
-    with banco.begin() as c:
-        c.execute(text("UPDATE ocr.documento SET status = 'processando' WHERE uuid = CAST(:u AS uuid)"), {"u": uid})
+    with limpar.travar(uid):
+        d = limpar.obter(uid)
+        d.status = "processando"
+        limpar.salvar(d)
     assert cliente.patch(f"/documentos/{uid}/correcoes", json={"campos": {"localidade": "x"}}).status_code == 409
     assert cliente.post(f"/documentos/{uid}/validar").status_code == 409
 
 
-def test_ct96_restricoes_do_banco(cliente, banco, pdf_exemplo):
-    import sqlalchemy as sa
+def test_ct96_restricoes_do_contrato(cliente, limpar, pdf_exemplo):
+    """O que eram restrições CHECK/UNIQUE do banco agora é o contrato do JSON: nada fora dele é gravado."""
+    from pydantic import ValidationError
 
     uid = _enviar(cliente, pdf_exemplo).json()["uuid"]
-    invalidos = [
-        "UPDATE ocr.documento SET status = 'qualquer' WHERE uuid = CAST(:u AS uuid)",
-        "UPDATE ocr.requerimento SET confianca_geral = 101 WHERE documento_id = "
-        "(SELECT id FROM ocr.documento WHERE uuid = CAST(:u AS uuid))",
-        "UPDATE ocr.requerimento SET cpf_cnpj = '059.749.653-6l' WHERE documento_id = "
-        "(SELECT id FROM ocr.documento WHERE uuid = CAST(:u AS uuid))",
-        "UPDATE ocr.requerimento SET status_validacao = 'validado', validado_em = NULL WHERE documento_id = "
-        "(SELECT id FROM ocr.documento WHERE uuid = CAST(:u AS uuid))",
-        "INSERT INTO ocr.campo_extraido (requerimento_id, campo, obrigatorio, corrigido_manual) "
-        "SELECT r.id, 'latitude', false, false FROM ocr.requerimento r "
-        "JOIN ocr.documento d ON d.id = r.documento_id WHERE d.uuid = CAST(:u AS uuid)",
-    ]
-    for sql in invalidos:
-        with pytest.raises(sa.exc.IntegrityError), banco.begin() as c:
-            c.execute(sa.text(sql), {"u": uid})
+    antes = _json(limpar, uid)
+
+    def status(d):
+        d.status = "qualquer"
+
+    def confianca(d):
+        d.requerimento.confianca_geral = 101
+
+    def cpf(d):
+        d.requerimento.cpf_cnpj = "059.749.653-6l"
+
+    def validado_sem_data(d):
+        d.requerimento.validacao.situacao = "validado"
+
+    def campo_repetido(d):
+        d.requerimento.campos.append(d.requerimento.campos[0].model_copy())
+
+    for estragar in (status, confianca, cpf, validado_sem_data, campo_repetido):
+        with limpar.travar(uid):
+            d = limpar.obter(uid)
+            estragar(d)
+            with pytest.raises(ValidationError):
+                limpar.salvar(d)
+        assert _json(limpar, uid) == antes, estragar.__name__  # o arquivo não mudou
     # o mesmo CPF pode ter vários requerimentos
     _enviar(cliente, F.pdf_requerimento(F.DadosReq(documento="05974965361", localidade="Outro")), "outro.pdf")
-    with banco.connect() as c:
-        assert c.scalar(sa.text("SELECT count(*) FROM ocr.requerimento WHERE cpf_cnpj = '059.749.653-61'")) == 2
+    r = cliente.get("/documentos", params={"busca": "059.749.653-61"}).json()
+    assert r["total"] == 2
 
 
 def test_ct97_finalidade_repetida_na_correcao(cliente):
@@ -439,9 +450,8 @@ def test_ct97_finalidade_repetida_na_correcao(cliente):
     assert len(r.json()["requerimento"]["finalidades"]) == len(textos) + 1
 
 
-def test_ct98_acuracia_e_versao_do_pipeline(cliente, banco, pdf_exemplo):
-    from sqlalchemy import text
-
+def test_ct98_acuracia_e_versao_do_pipeline(cliente, limpar, pdf_exemplo):
+    from ocr_requerimentos.ferramentas import acuracia
     from ocr_requerimentos.pipeline import VERSAO_PIPELINE
 
     uid = _enviar(cliente, pdf_exemplo).json()["uuid"]
@@ -449,19 +459,21 @@ def test_ct98_acuracia_e_versao_do_pipeline(cliente, banco, pdf_exemplo):
     cliente.patch(f"/documentos/{uid}/correcoes", json={"campos": {"latitude": "-5°02'41.06\""}})
     cliente.patch(f"/documentos/{uid}/correcoes", json={"campos": {"localidade": "Sede"}})  # nova gravação
     cliente.post(f"/documentos/{uid}/validar")
-    with banco.connect() as c:
-        versao, cfg = c.execute(text("SELECT versao_pipeline, config_extracao FROM ocr.documento "
-                                     "WHERE uuid = CAST(:u AS uuid)"), {"u": uid}).one()
-        assert versao == VERSAO_PIPELINE and cfg["motor_ocr"] and cfg["limiar_confianca"] == 80.0
-        ocr, conf = c.execute(text(
-            "SELECT valor_ocr, confianca_ocr FROM ocr.campo_extraido WHERE campo = 'latitude'")).one()
-        assert ocr == antes["valor_bruto"] and float(conf) == antes["confianca"]  # leitura original preservada
-        acuracia = {r.campo: r for r in c.execute(text("SELECT * FROM ocr.vw_acuracia_campo"))}
-        assert acuracia["latitude"].corrigidos == 1 and acuracia["latitude"].pct_acerto == 0
-        assert acuracia["municipio"].corrigidos == 0 and acuracia["municipio"].pct_acerto == 100
-        assert acuracia["localidade"].corrigidos == 1
-        faixas = c.execute(text("SELECT sum(conferidos) FROM ocr.vw_calibracao_confianca")).scalar()
-        assert faixas > 0
+    gravado = _json(limpar, uid)
+    assert gravado["leitura"]["versao_pipeline"] == VERSAO_PIPELINE
+    cfg = gravado["leitura"]["configuracao"]
+    assert cfg["motor_ocr"] and cfg["limiar_confianca"] == 80.0
+    lat = next(c for c in gravado["requerimento"]["campos"] if c["campo"] == "latitude")
+    # leitura original preservada e identificada como tal, ao lado do valor corrigido
+    assert lat["leitura_original_ocr"] == {"valor_lido": antes["valor_bruto"], "confianca_ocr": antes["confianca"]}
+    assert lat["corrigido_manualmente"] and lat["valor_atual"] == "-5°02'41.06\"" and lat["confianca_atual"] == 100
+    assert [h["tipo"] for h in gravado["historico_de_revisoes"]] == ["correcao", "correcao"]
+    campos, faixas = acuracia(limpar.iterar_documentos())
+    por_campo = {c["campo"]: c for c in campos}
+    assert por_campo["latitude"]["corrigidos"] == 1 and por_campo["latitude"]["pct_acerto"] == 0
+    assert por_campo["municipio"]["corrigidos"] == 0 and por_campo["municipio"]["pct_acerto"] == 100
+    assert por_campo["localidade"]["corrigidos"] == 1
+    assert sum(f["conferidos"] for f in faixas) > 0
 
 
 def test_ct99_filtros_da_lista(cliente):

@@ -19,8 +19,7 @@ RUN if [ "$COM_PADDLE" = "1" ]; then pip install -r requirements-paddle.txt \
       && python -c "from paddleocr import PaddleOCR; PaddleOCR(lang='pt', show_log=False)"; fi
 
 COPY ocr_requerimentos ./ocr_requerimentos
-COPY migrations ./migrations
-COPY alembic.ini pyproject.toml ./
+COPY pyproject.toml ./
 
 RUN useradd --create-home --uid 10001 ocr && mkdir -p /data/ocr /data/entrada && chown -R ocr /data
 USER ocr

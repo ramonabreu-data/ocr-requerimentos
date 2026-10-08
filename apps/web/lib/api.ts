@@ -75,6 +75,7 @@ export const api = {
   documento: (uuid: string) => pedir<DocumentoDetalhe>(`/documentos/${uuid}`),
   imagemUrl: (uuid: string, pagina: number) => `${BASE}/documentos/${uuid}/paginas/${pagina}/imagem`,
   arquivoUrl: (uuid: string) => `${BASE}/documentos/${uuid}/arquivo`,
+  jsonUrl: (uuid: string) => `${BASE}/documentos/${uuid}/json`,
   reprocessar: (uuid: string) => pedir<DocumentoResumo>(`/documentos/${uuid}/reprocessar`, { method: "POST" }),
   corrigir: (uuid: string, corpo: CorpoCorrecao) =>
     pedir<DocumentoDetalhe>(`/documentos/${uuid}/correcoes`, json(corpo, "PATCH")),

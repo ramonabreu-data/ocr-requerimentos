@@ -1,3 +1,5 @@
 -r requirements.txt
 pytest==9.1.1
 httpx==0.28.1
+fakeredis[lua]==2.39.0  # Redis em memória nos testes (REDIS_URL=memoria://)
+lupa==2.8

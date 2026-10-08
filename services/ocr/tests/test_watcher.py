@@ -6,9 +6,6 @@ pytestmark = pytest.mark.db
 
 
 def test_ct60_e_ct61_pasta_monitorada(limpar, tmp_path):
-    from sqlalchemy import select
-
-    from ocr_requerimentos.modelos import Documento, Lote, sessao
     from ocr_requerimentos.watcher import varrer
 
     arq = tmp_path / "scan001.pdf"
@@ -21,9 +18,8 @@ def test_ct60_e_ct61_pasta_monitorada(limpar, tmp_path):
     assert len(ids) == 1
     assert not arq.exists()
     assert list((tmp_path / "processados").rglob("scan001.pdf"))
-    with sessao() as s:
-        doc = s.get(Documento, ids[0])
-        assert doc.status == "extraido"
-        lote = s.scalar(select(Lote))
-        assert lote.origem == "pasta_monitorada" and lote.nome.startswith("Pasta monitorada")
-        assert lote.total == 1
+    assert limpar.obter(ids[0]).status == "extraido"
+    total, lotes = limpar.listar_lotes(1, 10)
+    assert total == 1 and lotes[0].origem == "pasta_monitorada" and lotes[0].nome.startswith("Pasta monitorada")
+    assert limpar.contagem_lote(lotes[0].uuid) == {"extraido": 1}
+    assert limpar.obter(ids[0]).lote_uuids() == [lotes[0].uuid]

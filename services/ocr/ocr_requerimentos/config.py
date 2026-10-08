@@ -10,18 +10,26 @@ from sqlalchemy.engine import URL
 class Config(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Banco onde o schema ocr é gravado. DATABASE_URL, se definida, vale sobre as partes DESTINO_DB_*;
-    # com as partes, a URL é montada aqui (senha com @ : / não precisa ser codificada).
-    database_url: str = ""
-    destino_db_host: str | None = None
-    destino_db_porta: int = 5432
-    destino_db_nome: str | None = None
-    destino_db_usuario: str | None = None
-    destino_db_senha: str | None = None
-    destino_db_sslmode: str | None = None  # disable | prefer | require | verify-full ...
-    criar_views: bool = True  # false: a migration 0006 não cria as views (banco que não aceita views)
+    # Banco do SIGA, só leitura (pessoa pelo CPF, municípios e polígonos, procedimentos...). Os dados da
+    # ferramenta não vão para banco: ficam em JSON no armazenamento (ver repositorio.py).
+    # SIGA_DATABASE_URL, se definida, vale sobre as partes SIGA_DB_*; com as partes, a URL é montada aqui
+    # (senha com @ : / não precisa ser codificada).
+    siga_database_url: str = ""
+    siga_db_host: str | None = None
+    siga_db_porta: int = 5432
+    siga_db_nome: str | None = None
+    siga_db_usuario: str | None = None
+    siga_db_senha: str | None = None
+    siga_db_sslmode: str | None = None  # disable | prefer | require | verify-full ...
+
+    # Redis: fila (Celery) e índice/travas dos JSONs. O índice é derivado do bucket e pode ser
+    # reconstruído (python -m ocr_requerimentos.ferramentas reconstruir-indice).
+    # "memoria://" usa um Redis em memória do próprio processo (testes; exige fakeredis).
     celery_broker_url: str = "redis://localhost:6379/2"
     celery_eager: bool = False  # executa tarefas na mesma thread (testes / desenvolvimento sem Redis)
+    redis_url: str = "redis://localhost:6379/3"
+    redis_prefixo: str = "ocr"
+    trava_segundos: int = 120  # validade de uma trava de documento (renovada a cada gravação)
 
     storage_backend: str = "local"  # local | s3
     storage_dir: str = "/data/ocr"
@@ -51,17 +59,17 @@ class Config(BaseSettings):
     pasta_intervalo_s: int = 10
 
     @model_validator(mode="after")
-    def _montar_database_url(self) -> "Config":
-        if self.database_url:
+    def _montar_siga_database_url(self) -> "Config":
+        if self.siga_database_url:
             return self
-        if self.destino_db_host:
-            self.database_url = URL.create(
-                "postgresql+psycopg", username=self.destino_db_usuario, password=self.destino_db_senha,
-                host=self.destino_db_host, port=self.destino_db_porta, database=self.destino_db_nome,
-                query={"sslmode": self.destino_db_sslmode} if self.destino_db_sslmode else {},
+        if self.siga_db_host:
+            self.siga_database_url = URL.create(
+                "postgresql+psycopg", username=self.siga_db_usuario, password=self.siga_db_senha,
+                host=self.siga_db_host, port=self.siga_db_porta, database=self.siga_db_nome,
+                query={"sslmode": self.siga_db_sslmode} if self.siga_db_sslmode else {},
             ).render_as_string(hide_password=False)
         else:
-            self.database_url = "postgresql+psycopg://ocr:ocr@localhost:5432/siga"
+            self.siga_database_url = "postgresql+psycopg://ocr:ocr@localhost:5432/siga"
         return self
 
 

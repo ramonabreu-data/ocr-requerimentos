@@ -47,7 +47,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-33 | Linha de tabela com área decimal `2,5` e cultura de duas palavras | extraída | sistema, área e cultura separados corretamente |
 | CT-34 | Duas finalidades (Irrigação + Abastecimento Humano) | extraído | as duas finalidades reconhecidas e a tabela ligada à Irrigação |
 
-## 3. Banco, lotes e API (integração, PostgreSQL + PostGIS)
+## 3. API, gravação em JSON e lotes (integração com o SIGA em PostgreSQL + PostGIS, só leitura)
 
 | ID | Dado | Quando | Então |
 |---|---|---|---|
@@ -72,9 +72,25 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-93 | PDF dividido reenviado em outro lote | `POST /lotes` | as partes entram no lote novo junto com o original |
 | CT-94 | Duas pessoas corrigindo a mesma versão | `PATCH /correcoes` e `POST /validar` com `versao` antiga | 409; a primeira gravação prevalece |
 | CT-95 | Documento em leitura | `PATCH /correcoes`, `POST /validar` | 409 |
-| CT-96 | Status, confiança, CPF fora do padrão ou campo repetido gravados direto no banco | `UPDATE`/`INSERT` | o banco recusa; o mesmo CPF em dois requerimentos é aceito |
+| CT-96 | Status, confiança, CPF fora do padrão, validado sem data ou campo repetido | `repo.salvar` | o contrato do JSON recusa e o arquivo no bucket não muda; o mesmo CPF em dois requerimentos é aceito |
 | CT-97 | Finalidade repetida na correção | `PATCH /correcoes` | aceita; detalhes ficam só na primeira |
-| CT-98 | Campo corrigido e documento validado | consulta às views | `valor_ocr`/`confianca_ocr` preservam a leitura; `vw_acuracia_campo` e `vw_calibracao_confianca` contam a correção |
+| CT-98 | Campo corrigido e documento validado | leitura do JSON e `ferramentas acuracia` | `leitura_original_ocr` preserva a leitura ao lado de `valor_atual`; versão do pipeline e configuração gravadas; o relatório de acurácia conta a correção |
+
+## 3b. Repositório de JSON e índice (sem banco: pasta temporária + Redis em memória)
+
+| ID | Dado | Quando | Então |
+|---|---|---|---|
+| CT-100 | Campo corrigido à mão | gravar | o JSON traz `valor_atual`, `confianca_atual`, `corrigido_manualmente` e `leitura_original_ocr` com nomes explícitos, em UTF-8 legível |
+| CT-101 | CPF com letra, confiança > 100, validado sem data, campo desconhecido, status inválido | validar / gravar | recusado pelo contrato; o arquivo gravado não muda |
+| CT-102 | Contrato | `ferramentas json-schema` | gera `documento`, `paginas` e `lote` `.schema.json` com as descrições dos campos |
+| CT-103 | 12 gravações simultâneas no mesmo documento | `travar` + `salvar` | nenhuma se perde |
+| CT-104 | Mesmo arquivo enviado 8 vezes ao mesmo tempo | `registrar_documento` | um só documento; 7 duplicados; contado uma vez no lote |
+| CT-105 | Gravação com versão antiga | `conferir_versao` | `ConflitoVersao`; sem versão continua aceito |
+| CT-106 | Documento muda de situação e entra num segundo lote | `salvar` / `vincular_lote` | contadores dos dois lotes acompanham; lote sem pendentes fica com data de conclusão |
+| CT-107 | Filtros, paginação e varredura em blocos | `consultar` | resultados e totais corretos; dividido fora das listas; opções de filtro acompanham correções; temporários apagados |
+| CT-108 | Redis perdido | `reconstruir_indice` | índice refeito do bucket, idêntico ao anterior |
+| CT-109 | Carga sintética (450 documentos, 3 lotes) | `carga_sintetica` | totais e contadores coerentes |
+| CT-110 | Validados e pendentes com correções | `acuracia` | só os validados contam; campos incluídos na revisão contam como não lidos; faixas de confiança corretas |
 
 ## 4. Pasta monitorada
 
@@ -98,11 +114,14 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 
 ## Resultado da última execução
 
-Ambiente: Python 3.12, Tesseract 5.3.4 (`por`), PostgreSQL 16 + PostGIS 3.4, Node 22.
+08/10/2026, depois da troca do banco pelos JSONs no bucket. Ambiente: Python 3.12, Tesseract 5 (`por`),
+Redis em memória (fakeredis) nos testes, PostgreSQL 16 + PostGIS 3.4 com o stub do SIGA, Node 22.
 
-- `pytest` com `TEST_DATABASE_URL`: **66 passaram, 0 falharam** (28 unitários, 18 de extração,
-  20 de integração com banco, API e pasta monitorada). Sem banco: 46 passam e os 20 de integração
-  são pulados.
-- Interface: `next build` sem erros de tipo. Roteiro CT-70 a CT-76 executado em navegador headless
-  contra a API real (envio pelo proxy, lote ZIP, destaque do campo na folha, correção da latitude,
-  validação e layout em 390 px), sem erros no console. CT-77 (teclado) depende de conferência humana.
+- `pytest` com `TEST_DATABASE_URL`: **141 passaram, 0 falharam**. Sem banco: 104 passam (unitários,
+  extração e os 11 do repositório de JSON) e os 37 de integração com o SIGA são pulados.
+- Conferido à parte com MinIO e Redis reais: envio de lote com PDF dividido, correção, 409 com versão
+  antiga, validação, JSON no bucket com a leitura original preservada, 5 versões do JSON guardadas pelo
+  versionamento do bucket e índice reconstruído idêntico depois de apagar o Redis.
+- Carga sintética de 100 mil documentos (números no README, seção "Onde os dados ficam").
+- Interface: `next build` sem erros de tipo, com o botão "Baixar JSON" na tela do documento. O roteiro
+  CT-70 a CT-77 não foi refeito nesta mudança (a API manteve rotas e respostas).

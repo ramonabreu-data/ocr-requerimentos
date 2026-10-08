@@ -1,14 +1,12 @@
-# versões testadas (Python 3.12, Tesseract 5.3, PostgreSQL 16 + PostGIS 3.4)
+# versões testadas (Python 3.12, Tesseract 5.3, Redis 7; SIGA em PostgreSQL 16 + PostGIS 3.4, só leitura)
 fastapi==0.142.2
 uvicorn[standard]==0.54.0
 python-multipart==0.0.32
 pydantic-settings==2.15.0
-SQLAlchemy==2.1.1
+SQLAlchemy==2.1.1  # só para ler o SIGA
 psycopg[binary]==3.3.6
-GeoAlchemy2==0.20.0
-alembic==1.20.0
 celery[redis]==5.6.3
-redis==6.4.0  # kombu[redis] 5.6.x exige redis<6.5
+redis==6.4.0  # índice e travas dos JSONs; kombu[redis] 5.6.x exige redis<6.5
 boto3==1.43.106
 pymupdf==1.28.2
 opencv-python-headless==4.13.0.92

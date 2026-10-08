@@ -1,4 +1,5 @@
 # Desenvolvimento: sobe um PostgreSQL/PostGIS com o stub das tabelas do SIGA que a ferramenta lê.
+# Os dados da ferramenta continuam em JSON no MinIO.
 services:
   postgres:
     image: postgis/postgis:16-3.4
@@ -15,29 +16,22 @@ services:
       interval: 5s
       retries: 10
 
-  migrar:
+  api:
     depends_on:
       postgres: { condition: service_healthy }
     environment:
-      DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
-      CRIAR_VIEWS: "true"  # o banco local faz o papel do principal, com as views de acurácia
-
-  api:
-    environment:
-      DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
+      SIGA_DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
     ports: ["127.0.0.1:${API_PORTA:-8000}:8000"]  # documentação interativa em http://localhost:${API_PORTA:-8000}/docs
 
   worker:
+    depends_on:
+      postgres: { condition: service_healthy }
     environment:
-      DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
+      SIGA_DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
 
   watcher:
     environment:
-      DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
-      STORAGE_BACKEND: s3
-      S3_ENDPOINT: http://minio:9000
-      CELERY_BROKER_URL: redis://redis:6379/2
-      PASTA_MONITORADA: /data/entrada
+      SIGA_DATABASE_URL: postgresql+psycopg://ocr:ocr@postgres:5432/siga
 
 volumes:
   pgdata:

@@ -1,0 +1,64 @@
+{
+  "$defs": {
+    "TextoPagina": {
+      "additionalProperties": false,
+      "properties": {
+        "numero": {
+          "minimum": 1,
+          "title": "Numero",
+          "type": "integer"
+        },
+        "texto": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Texto"
+        },
+        "palavras": {
+          "description": "Palavras do OCR: t = texto, c = confiança, b = caixa [x0, y0, x1, y1], p = página.",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Palavras",
+          "type": "array"
+        }
+      },
+      "required": [
+        "numero"
+      ],
+      "title": "TextoPagina",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_versao": {
+      "default": 1,
+      "title": "Schema Versao",
+      "type": "integer"
+    },
+    "documento_uuid": {
+      "title": "Documento Uuid",
+      "type": "string"
+    },
+    "paginas": {
+      "items": {
+        "$ref": "#/$defs/TextoPagina"
+      },
+      "title": "Paginas",
+      "type": "array"
+    }
+  },
+  "required": [
+    "documento_uuid"
+  ],
+  "title": "PaginasDocumento",
+  "type": "object"
+}

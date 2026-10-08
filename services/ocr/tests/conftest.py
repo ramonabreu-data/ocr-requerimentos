@@ -1,10 +1,12 @@
 """Configuração dos testes.
 
-Unitários e de extração rodam sem banco. Os de integração (marcador `db`) exigem
-TEST_DATABASE_URL apontando para um PostgreSQL com PostGIS **descartável** (o banco é recriado)."""
+Unitários, de extração e do repositório de JSON rodam sem banco, com armazenamento numa pasta temporária
+e Redis em memória (fakeredis). Os de integração com o SIGA (marcador `db`) exigem TEST_DATABASE_URL
+apontando para um PostgreSQL com PostGIS **descartável**: as tabelas do stub do SIGA são recriadas."""
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -22,9 +24,9 @@ os.environ.setdefault("STORAGE_DIR", _STORAGE)
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["CELERY_EAGER"] = "true"
 os.environ["CELERY_BROKER_URL"] = "memory://"
-os.environ["CRIAR_VIEWS"] = "true"  # test_ct98 consulta as views
+os.environ["REDIS_URL"] = "memoria://"
 if TEST_DB:
-    os.environ["DATABASE_URL"] = TEST_DB
+    os.environ["SIGA_DATABASE_URL"] = TEST_DB
     os.environ["REFERENCIAS"] = "siga"
 
 from ocr_requerimentos.dados_referencia import CULTURAS, SISTEMAS_IRRIGACAO  # noqa: E402
@@ -72,42 +74,41 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="session")
 def banco():
-    """Recria o banco de teste: stub do SIGA + migrations do schema ocr."""
-    from alembic import command
-    from alembic.config import Config as AlembicConfig
+    """Recria as tabelas do stub do SIGA (a ferramenta só lê o SIGA; os dados dela ficam em JSON)."""
     from sqlalchemy import create_engine, text
 
     eng = create_engine(TEST_DB)
     with eng.begin() as c:
-        c.execute(text("DROP SCHEMA IF EXISTS ocr CASCADE"))
-        c.execute(text("DROP TABLE IF EXISTS public.alembic_version_ocr"))
         for t in ("core_pessoafisica", "core_pessoajuridica", "core_pessoa", "core_municipio", "core_estado",
                   "protocolo_processo", "protocolo_procedimento", "outorga_tipointervencao",
                   "outorga_tipofinalidadeuso"):
             c.execute(text(f"DROP TABLE IF EXISTS public.{t} CASCADE"))
         for sql in sorted((RAIZ.parents[1] / "db" / "dev").glob("*.sql")):
             c.exec_driver_sql(sql.read_text(encoding="utf-8"))
-    cfg = AlembicConfig(str(RAIZ / "alembic.ini"))
-    cfg.set_main_option("script_location", str(RAIZ / "migrations"))
-    command.upgrade(cfg, "head")
     yield eng
     eng.dispose()
 
 
 @pytest.fixture
-def limpar(banco):
-    from sqlalchemy import text
+def repo():
+    """Repositório limpo: esvazia a pasta de armazenamento e o Redis em memória."""
+    from ocr_requerimentos.repositorio import repositorio
 
-    with banco.begin() as c:
-        c.execute(text("TRUNCATE ocr.revisao, ocr.campo_extraido, ocr.requerimento_irrigacao, "
-                       "ocr.requerimento_finalidade, ocr.requerimento, ocr.pagina, ocr.documento, ocr.lote "
-                       "RESTART IDENTITY CASCADE"))
+    r = repositorio()
+    for item in Path(r.store.raiz).iterdir():
+        shutil.rmtree(item) if item.is_dir() else item.unlink()
+    r.r.flushall()
+    return r
+
+
+@pytest.fixture
+def limpar(banco, repo):
     from ocr_requerimentos.pipeline.persistencia import referencias_padrao
 
     refs = referencias_padrao()
     if hasattr(refs, "limpar_cache"):
         refs.limpar_cache()
-    yield
+    yield repo
 
 
 @pytest.fixture

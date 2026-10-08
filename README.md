@@ -2,7 +2,8 @@
 
 Lê requerimentos de outorga ("Regularização de Poço Tubular" e afins) digitalizados — PDF do
 sistema, PDF assinado, PDF de scanner, foto de celular ou imagem —, extrai os campos, confere
-com o cadastro do SIGA e grava em PostgreSQL. Funciona com um arquivo de cada vez ou em lote
+com o cadastro do SIGA e grava cada requerimento num arquivo JSON, no bucket (S3/MinIO). Funciona com
+um arquivo de cada vez ou em lote
 (vários arquivos, ZIP ou pasta do scanner). Uma tela de conferência mostra a folha ao lado do
 formulário, com cada campo marcado no trecho de onde foi lido.
 
@@ -12,12 +13,13 @@ services/ocr        Python: API FastAPI, worker Celery, monitor de pasta, pipeli
   ocr_requerimentos/
     extracao/       parser por âncoras, normalizadores, validação, referências do SIGA
     imagem/         pré-processamento (OpenCV), Tesseract/PaddleOCR, QR code, assinatura
-    pipeline/       leitura do arquivo, orquestração, gravação no banco, correções
-  migrations/       schema "ocr" (Alembic + SQL)
+    pipeline/       leitura do arquivo, orquestração, gravação do resultado, correções
+    modelos.py      contrato dos arquivos JSON (fonte da verdade)
+    repositorio.py  JSON no bucket + índice, travas e contadores no Redis
+    ferramentas.py  reconstruir índice, relatório de acurácia, JSON Schema, carga sintética
   tests/            testes automatizados (ver docs/cenarios-de-teste.md)
 db/dev              stub das tabelas do SIGA para desenvolvimento
-db/destino          DDL consolidada do schema "ocr" para criar um banco novo (sem views)
-docs                cenários de teste
+docs                cenários de teste e JSON Schema dos arquivos (docs/contrato-json)
 ```
 
 ## Como funciona
@@ -63,51 +65,114 @@ Escolhas que valem conhecer:
 - CPF, coordenadas, áreas e data são relidos num recorte em tons de cinza. Leituras iguais elevam a
   confiança; diferentes mandam o campo para revisão mostrando as duas versões.
 
-## Banco de dados
+## Onde os dados ficam
 
-Tudo o que a ferramenta grava fica no schema `ocr` (migrations em `services/ocr/migrations`):
+Não há banco de dados da ferramenta. Tudo o que ela produz fica em **arquivos JSON no bucket**, ao lado
+dos arquivos originais; o Redis guarda a fila e um **índice derivado** desses JSONs.
 
-| Tabela | Guarda |
-|---|---|
-| `lote` | envio (upload, ZIP ou pasta do scanner) e contadores por situação |
-| `lote_documento` | documentos de cada lote; o mesmo arquivo pode estar em vários lotes |
-| `documento` | arquivo (`sha256` único), situação, assinatura, QR code, versão do pipeline e configuração da última leitura |
-| `pagina` | texto e palavras do OCR com posição, por página |
-| `requerimento` | dados extraídos: texto lido + id no SIGA, ponto (PostGIS, SIRGAS 2000), pendências, `versao` |
-| `requerimento_finalidade` | finalidades, com os detalhes de cada uma em JSONB |
-| `requerimento_irrigacao` | sistema, área e cultura de cada linha da tabela de irrigação |
-| `dominio` | listas fechadas do formulário (culturas, sistemas de irrigação, espécies, ...) |
-| `campo_extraido` | um registro por campo: valor lido e normalizado, confiança, página, caixa, se foi corrigido e o que o OCR leu originalmente |
-| `revisao` | auditoria: cada correção, validação com pendências e releitura com correções reaplicadas |
+```
+                 ┌──────────── bucket (MinIO/S3) = fonte da verdade ─────────────┐
+upload/pasta ──► │ documentos/{uuid}/original.pdf, paginas/{n}.jpg               │
+                 │ dados/documentos/{uuid}.json   um requerimento, completo      │
+   worker ─────► │ dados/paginas/{uuid}.json      texto e palavras do OCR        │
+                 │ dados/lotes/{uuid}.json        lote (envio)                   │
+                 └───────────────────────────────────────────────────────────────┘
+                 ┌──────────── Redis = fila + índice (reconstruível) ────────────┐
+   API ────────► │ travas por documento · SHA-256 → documento · contadores       │
+                 │ por lote · conjuntos para fila, filtros e paginação           │
+                 └───────────────────────────────────────────────────────────────┘
+                 Banco do SIGA: só leitura (CPF, municípios e polígonos, listas)
+```
 
-Regras que o banco e a gravação garantem:
+**O JSON de um requerimento** (`dados/documentos/{uuid}.json`) traz o documento (arquivo, SHA-256,
+situação, assinatura, QR code, versão do pipeline e configuração da leitura, lotes), os dados extraídos
+e, para cada campo, o que é cada coisa com nome explícito:
 
-- O mesmo arquivo nunca é lido duas vezes. Reenviado em outro lote, entra nesse lote também (com as
-  partes, se tiver sido dividido) e os contadores dos dois lotes são atualizados.
+```json
+{
+  "campo": "latitude",
+  "valor_atual": "-5°02'41.06\"",
+  "valor_atual_normalizado": "-5.0447389",
+  "confianca_atual": 100.0,
+  "corrigido_manualmente": true,
+  "leitura_original_ocr": { "valor_lido": "-5°02'91.06\"", "confianca_ocr": 100.0 },
+  "local_na_folha": { "pagina": 1, "caixa": [1556.7, 447.6, 1799.6, 508.9] },
+  "validacao": { "valido": true, "obrigatorio": true, "mensagem": null }
+}
+```
+
+- `valor_atual`/`confianca_atual`: o valor que vale agora (lido pelo OCR ou digitado na revisão).
+- `leitura_original_ocr`: o que o OCR leu na última leitura, **nunca alterado pela revisão**; nulo quando
+  o campo não foi lido e foi incluído na revisão.
+- `historico_de_revisoes`: cada correção (`campo`, `valor_anterior`, `valor_novo`, `usuario_id`, `em`),
+  validação com pendências (com a justificativa) e releitura com correções reaplicadas.
+
+O formato completo, com a descrição de cada campo, está em `docs/contrato-json/*.schema.json` (gerado
+de `services/ocr/ocr_requerimentos/modelos.py` com `python -m ocr_requerimentos.ferramentas json-schema`).
+`GET /documentos/{uuid}/json` devolve o arquivo como está gravado.
+
+Regras que a gravação garante (antes eram restrições do banco):
+
+- **Contrato**: todo JSON passa pelos modelos antes de ir ao bucket. Situação, tipos, confiança (0–100),
+  formato do CPF/CNPJ, validado com data e campo sem repetição: o que violar não é gravado (a API
+  responde 422).
+- **Concorrência**: quem altera um documento segura uma trava no Redis, relê o JSON, altera e grava. A
+  tela envia `requerimento.versao` ao salvar e validar; se outra pessoa (ou uma releitura) gravou antes, a
+  API responde 409 e pede para recarregar. O OCR roda fora da trava.
+- **Sem leitura repetida**: o mesmo arquivo (SHA-256) vira um documento só, mesmo enviado várias vezes ao
+  mesmo tempo. Reenviado em outro lote, entra nesse lote também (com as partes, se foi dividido).
+- **Histórico de versões**: o compose liga o versionamento do bucket, então cada regravação de um JSON
+  guarda a versão anterior (backup e trilha de auditoria sem custo de código).
+- As referências ao SIGA (`pessoa_id`, `municipio_id`, ...) são ids do SIGA, lido só para consulta.
 - O mesmo CPF/CNPJ pode ter vários requerimentos.
-- Situações, tipos, faixas de confiança (0–100) e formato do CPF/CNPJ têm restrição `CHECK`; um campo
-  não aparece duas vezes no mesmo requerimento.
-- Duas pessoas revisando o mesmo documento: a tela envia `requerimento.versao` ao salvar e validar; se
-  outra pessoa (ou uma releitura) gravou antes, a API responde 409 e pede para recarregar.
-- As referências ao SIGA (`pessoa_id`, `municipio_id`, ...) não têm chave estrangeira: o schema `public`
-  é só lido.
 
-**Acurácia do OCR.** Cada campo guarda a leitura original (`valor_ocr`, `confianca_ocr`) mesmo depois de
-corrigido, e cada documento guarda a versão do pipeline que o leu. Duas views usam isso, sempre sobre
-requerimentos validados:
+**Índice no Redis.** Guarda um resumo de cada documento e conjuntos ordenados por data (geral, por
+situação, lote, procedimento e município), os contadores de cada lote e o mapa SHA-256 → documento. A
+lista, a fila de revisão, os filtros e a paginação saem dele sem abrir os JSONs. É derivado: se o Redis
+se perder, `make reconstruir-indice` refaz tudo lendo o bucket. O Redis do compose grava em disco (AOF)
+e usa `noeviction`, para nunca descartar chaves do índice por falta de memória.
 
-- `ocr.vw_acuracia_campo`: quanto cada campo é corrigido, por versão do pipeline;
-- `ocr.vw_calibracao_confianca`: acerto por faixa de confiança, para ajustar `LIMIAR_CONFIANCA`.
+**Acurácia do OCR.** Cada campo guarda a leitura original mesmo depois de corrigido, e cada documento a
+versão do pipeline que o leu. `make acuracia` (ou `python -m ocr_requerimentos.ferramentas acuracia
+--saida PASTA`) gera, sobre os requerimentos validados:
+
+- `acuracia_campo.csv`: quanto cada campo é corrigido, por versão do pipeline;
+- `calibracao_confianca.csv`: acerto por faixa de confiança, para ajustar `LIMIAR_CONFIANCA`.
 
 Ao mudar algo que altere o resultado da extração (leitura, parser, normalizadores, validação), suba
 `VERSAO_PIPELINE` em `services/ocr/ocr_requerimentos/pipeline/__init__.py` para comparar as versões.
+Para análises livres, o DuckDB lê os JSONs direto do bucket:
 
-**Banco de destino.** O banco onde o schema `ocr` é gravado vem do `.env`, nas variáveis `DESTINO_DB_HOST`,
-`_PORTA`, `_NOME`, `_USUARIO`, `_SENHA` e `_SSLMODE`, que o `docker-compose.yml` repassa aos serviços
-(`DATABASE_URL`, se definida, vale sobre elas). Para um banco que não aceita views, use
-`CRIAR_VIEWS=false`: a migration 0006 pula as views, e as mesmas análises ficam em
-`db/destino/consultas/acuracia.sql`, como consultas comuns. Para criar o schema sem rodar Python (pelo
-DBA, por exemplo), use os arquivos de `db/destino`; o README de lá explica.
+```sql
+-- duckdb: INSTALL httpfs; LOAD httpfs; (configure o endpoint/credenciais do S3/MinIO)
+SELECT c.campo, count(*) AS conferidos, count(*) FILTER (WHERE c.corrigido_manualmente) AS corrigidos
+FROM (SELECT unnest(requerimento.campos) AS c
+      FROM read_json_auto('s3://ocr-requerimentos/dados/documentos/*.json')
+      WHERE requerimento.validacao.situacao = 'validado')
+GROUP BY 1 ORDER BY corrigidos DESC;
+```
+
+**Volume.** Medido com `ferramentas carga-sintetica` em MinIO e Redis reais, numa máquina de
+desenvolvimento, com 100 mil documentos:
+
+| Operação | Tempo |
+|---|---|
+| gravação (JSON no bucket + índice, com trava) | 122 documentos/s (32 em paralelo) |
+| lista, fila de revisão, filtro por situação, município, procedimento ou período de gravação | 2–13 ms |
+| contadores de um lote | < 1 ms |
+| busca por trecho do nome, do arquivo ou do CPF (varre os candidatos) | ~1,4 s |
+| reconstruir o índice a partir do bucket | ~180 documentos/s (20 mil em 110 s) |
+| memória do Redis | ~2 KB por documento (193 MB com 100 mil; ~2 GB com 1 milhão) |
+
+A gravação não é o gargalo: o OCR leva segundos por documento (escale com `make escalar N=...`). A busca
+por trecho de texto cresce linearmente com o número de candidatos (~14 µs por documento, ~14 s com 1
+milhão); combinada com situação, município, procedimento ou período, ela só varre o que sobrou desses
+filtros. Para busca livre rápida acima de algumas centenas de milhares de requerimentos, o próximo passo é
+um índice de texto (Redis 8 com o Query Engine ou OpenSearch) alimentado pelos mesmos JSONs.
+
+**Banco do SIGA.** Lido das variáveis `SIGA_DB_HOST`, `_PORTA`, `_NOME`, `_USUARIO`, `_SENHA` e
+`_SSLMODE` do `.env` (`SIGA_DATABASE_URL`, se definida, vale sobre elas). O usuário só precisa de
+`SELECT`.
 
 ## Rodar em desenvolvimento
 
@@ -123,16 +188,17 @@ make dev            # = docker compose up --build
 - Console do MinIO: http://localhost:9001
 - Pasta do scanner: `./entrada` (cada dia vira um lote "Pasta monitorada dd/mm/aaaa")
 
-O `docker-compose.override.yml` sobe um PostGIS com `db/dev/00_siga_stub.sql`: só as tabelas do SIGA
-que a ferramenta lê, com 36 municípios, procedimentos, intervenções, finalidades e a pessoa do PDF de
+O `docker-compose.override.yml` sobe um PostGIS, no papel do SIGA, com `db/dev/00_siga_stub.sql`: só
+as tabelas do SIGA que a ferramenta lê, com 36 municípios, procedimentos, intervenções, finalidades e a pessoa do PDF de
 exemplo. Os polígonos de Altos e Teresina são retângulos fictícios.
 
-Sem Docker: PostgreSQL 16 + PostGIS, Redis, Tesseract 5 com o idioma `por`, Python 3.12 e Node 22.
+Sem Docker: Redis, Tesseract 5 com o idioma `por`, Python 3.12 e Node 22; um PostgreSQL + PostGIS com o
+stub do SIGA (`db/dev`) ou `REFERENCIAS=estaticas` para validar sem o SIGA.
 
 ```bash
 cd services/ocr && pip install -r requirements-dev.txt
-export DATABASE_URL=postgresql+psycopg://ocr:ocr@localhost:5432/siga STORAGE_BACKEND=local STORAGE_DIR=/tmp/ocr
-alembic upgrade head
+export SIGA_DATABASE_URL=postgresql+psycopg://ocr:ocr@localhost:5432/siga STORAGE_BACKEND=local STORAGE_DIR=/tmp/ocr
+export REDIS_URL=redis://localhost:6379/3                  # ou memoria:// (um processo só, com CELERY_EAGER=true)
 uvicorn ocr_requerimentos.api.main:app --reload            # API
 celery -A ocr_requerimentos.worker worker -Q ocr,padrao   # worker (ou CELERY_EAGER=true para dispensar Redis)
 cd ../../apps/web && npm install && API_URL=http://localhost:8000 npm run dev
@@ -145,17 +211,19 @@ make prod           # = docker compose -f docker-compose.yml up -d --build
 make escalar N=4    # mais workers de OCR (cada um usa 1 núcleo por tarefa)
 ```
 
-Banco: preencha as variáveis `DESTINO_DB_*` do `.env` (ou `DATABASE_URL`). A ferramenta **só lê** o
-schema `public` (tabelas do SIGA, com `REFERENCIAS=siga`) e escreve apenas no schema `ocr`, criado pelas
-migrations (controle de versão em `public.alembic_version_ocr`, separado da `django_migrations`). Em
-desenvolvimento, o `docker-compose.override.yml` troca o banco pelo PostGIS local. Permissões sugeridas:
+Dados: ficam no bucket `S3_BUCKET` (MinIO do compose ou um S3 externo, com `S3_ENDPOINT` e credenciais
+no `.env`); faça backup do bucket, que é a fonte da verdade. O Redis (`redis://redis:6379`, base 2 para
+a fila e 3 para o índice) não precisa de backup: o índice se refaz com `make reconstruir-indice`.
+
+SIGA: preencha as variáveis `SIGA_DB_*` do `.env` (ou `SIGA_DATABASE_URL`). A ferramenta **só lê** o SIGA
+(com `REFERENCIAS=siga`). Em desenvolvimento, o `docker-compose.override.yml` troca o SIGA pelo PostGIS
+local. Permissões sugeridas:
 
 ```sql
-CREATE ROLE ocr_app LOGIN PASSWORD '...';
-GRANT CREATE ON DATABASE siga TO ocr_app;           -- para criar o schema ocr na 1ª migration
-GRANT USAGE ON SCHEMA public TO ocr_app;
+CREATE ROLE ocr_leitura LOGIN PASSWORD '...';
+GRANT USAGE ON SCHEMA public TO ocr_leitura;
 GRANT SELECT ON core_estado, core_municipio, core_pessoa, core_pessoafisica, core_pessoajuridica,
-  protocolo_procedimento, protocolo_processo, outorga_tipointervencao, outorga_tipofinalidadeuso TO ocr_app;
+  protocolo_procedimento, protocolo_processo, outorga_tipointervencao, outorga_tipofinalidadeuso TO ocr_leitura;
 ```
 
 Confira o SRID das geometrias do SIGA (`SRID`, padrão 4674/SIRGAS 2000). A checagem do ponto dentro
@@ -169,16 +237,16 @@ troque a função `usuarioAtual` pelo `auth.api.getSession(...)` da configuraç�
 responda 401 sem sessão. Até lá, `DEV_USUARIO_ID` define o usuário gravado no histórico.
 
 **Listas do formulário.** Sistemas de irrigação, culturas e as demais listas das finalidades não têm
-tabela no SIGA, então ficam em `ocr.dominio`, semeadas a partir de
-`services/ocr/ocr_requerimentos/dados_referencia.py` (copiadas do formulário público em 01/10/2026). Se
-o formulário mudar, atualize esse arquivo e crie uma migration que regrave `ocr.dominio`.
+tabela no SIGA, então vêm de `services/ocr/ocr_requerimentos/dados_referencia.py` (copiadas do formulário
+público em 01/10/2026). O id de cada opção é a posição na lista: se o formulário mudar, acrescente as
+opções novas no fim e suba `VERSAO_PIPELINE`.
 
 **QR code no PDF (recomendado).** Se o gerador do PDF do requerimento incluir um QR com
 `SIGA-REQ|v1|<uuid do processo>|<hash>`, o documento digitalizado fica ligado ao processo sem
 depender do OCR. `ocr_requerimentos.imagem.qrcode.gerar_png(uuid, hash)` gera a imagem; imprima com
 pelo menos 2 cm de lado.
 
-**Enviar para o SIGA.** A ferramenta grava e valida os dados no schema `ocr`. Criar ou atualizar
+**Enviar para o SIGA.** A ferramenta grava e valida os dados nos JSONs do bucket. Criar ou atualizar
 registros do SIGA a partir dos validados (processo, ponto de interferência) é uma etapa separada,
 de propósito, para passar pelas regras do próprio Django.
 
@@ -194,7 +262,8 @@ de propósito, para passar pelas regras do próprio Django.
 | `GET /documentos?status=&busca=` e `GET /revisao` | listas e fila de revisão; `busca` acha CPF/CNPJ com ou sem máscara |
 | `GET /documentos?requerente=&procedimento=&municipio=&data_de=&data_ate=&campo_data=&pagina=&tamanho=` | filtros da lista de requerimentos, combinados com E: requerente sem diferenciar maiúsculas e acentos; período inclusivo pela data do documento (`campo_data=documento`, padrão) ou de gravação (`gravacao`, dia no fuso do Piauí) |
 | `GET /filtros` | procedimentos e municípios presentes nos requerimentos gravados, com a quantidade de cada |
-| `GET /documentos/{uuid}` | campos com valor lido, normalizado, confiança, página e caixa |
+| `GET /documentos/{uuid}` | campos com valor lido, normalizado, confiança, leitura original do OCR, página e caixa |
+| `GET /documentos/{uuid}/json` | o arquivo JSON do requerimento, como está gravado no bucket |
 | `GET /documentos/{uuid}/arquivo`, `/paginas/{n}/imagem` | original e página corrigida |
 | `PATCH /documentos/{uuid}/correcoes` | corrige campos, finalidades e tabela de irrigação; revalida e audita. Com `versao` (de `requerimento.versao`), 409 se outro gravou antes |
 | `POST /documentos/{uuid}/validar` | valida (`forcar` + `justificativa` quando há pendências; `versao` como nas correções) |
@@ -208,11 +277,12 @@ Os cenários estão em `docs/cenarios-de-teste.md`; cada teste automatizado leva
 
 ```bash
 cd services/ocr
-python -m pytest -q                                   # unitários + extração (precisa do Tesseract)
-TEST_DATABASE_URL=postgresql+psycopg://ocr:ocr@localhost:5432/siga_test python -m pytest -q   # + integração
+python -m pytest -q                                   # unitários, extração (precisa do Tesseract) e repositório de JSON
+TEST_DATABASE_URL=postgresql+psycopg://ocr:ocr@localhost:5432/siga_test python -m pytest -q   # + integração com o SIGA
 ```
 
-`TEST_DATABASE_URL` deve apontar para um banco **descartável**: ele é recriado a cada execução.
+Os testes gravam os JSONs numa pasta temporária e usam um Redis em memória (`fakeredis`).
+`TEST_DATABASE_URL` deve apontar para um PostGIS **descartável**: as tabelas do stub do SIGA são recriadas.
 Os documentos de teste são o PDF real enviado e PDFs sintéticos no mesmo layout
 (`tests/fabrica.py`), também degradados: rotação, ruído, JPEG ruim, papel amarelado, foto em
 perspectiva, página de cabeça para baixo, assinatura em caneta azul, assinatura digital e QR code.
@@ -224,7 +294,12 @@ perspectiva, página de cabeça para baixo, assinatura em caneta azul, assinatur
 - Manuscrito não é lido: só o texto impresso. A assinatura à mão é detectada como presença de tinta.
 - Os detalhes de cada finalidade são lidos conforme as definições em `extracao/finalidades.py`; um
   campo novo no formulário precisa ser descrito lá.
-- Reprocessar um documento `dividido` não relê as partes já criadas.
-- CPF/CNPJ lido com mais de 18 caracteres não cabe na coluna e o documento vai para `erro`.
+- Reprocessar um documento `dividido` não relê as partes já criadas. Se a divisão falhar no meio, as
+  partes já criadas continuam existindo (o documento original vai para `erro` e pode ser reprocessado).
+- A busca por trecho de texto varre os candidatos (ver "Volume" acima).
+- Uma tarefa que encontre o documento travado por outro processo por mais de 60 s volta para a fila
+  (até 2 vezes); na API, a resposta é 409.
 - O motor PaddleOCR é opcional e não foi testado; o Tesseract é o padrão testado.
-- O armazenamento S3/MinIO usa boto3 padrão; nos testes automatizados foi usado o armazenamento local.
+- O armazenamento S3/MinIO usa boto3 padrão. Os testes automatizados usam o armazenamento local; o fluxo
+  com MinIO e Redis reais (envio, correção, validação, versões no bucket e reconstrução do índice) e a carga
+  sintética foram conferidos à parte.

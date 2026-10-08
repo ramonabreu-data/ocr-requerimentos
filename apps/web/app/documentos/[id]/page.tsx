@@ -231,6 +231,11 @@ export default function Conferencia() {
         <a className="botao botao--secundario" href={api.arquivoUrl(doc.uuid)} target="_blank" rel="noreferrer">
           Abrir original
         </a>
+        {doc.requerimento && (
+          <a className="botao botao--secundario" href={api.jsonUrl(doc.uuid)} download>
+            Baixar JSON
+          </a>
+        )}
         {!EM_ANDAMENTO.has(doc.status) && doc.status !== "validado" && (
           <button className="botao botao--secundario" onClick={reprocessar}>
             Ler de novo

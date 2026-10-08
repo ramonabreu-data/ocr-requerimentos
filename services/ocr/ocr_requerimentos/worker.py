@@ -23,16 +23,18 @@ app.conf.update(
 
 
 @app.task(name="ocr.processar_documento", bind=True, max_retries=2, default_retry_delay=30)
-def processar_documento(self, documento_id: int) -> str:
-    from .modelos import sessao
+def processar_documento(self, documento_uuid: str) -> str:
     from .pipeline.persistencia import processar_documento as _processar
+    from .repositorio import TravaOcupada
 
-    with sessao() as s:
-        doc = _processar(s, documento_id)
-        log.info("documento %s -> %s", documento_id, doc.status)
-        return doc.status
+    try:
+        doc = _processar(documento_uuid)
+    except TravaOcupada as e:  # outro processo segurando o documento: tenta de novo mais tarde
+        raise self.retry(exc=e)
+    log.info("documento %s -> %s", documento_uuid, doc.status)
+    return doc.status
 
 
-def enfileirar(documento_ids: list[int]) -> None:
-    for i in documento_ids:
-        processar_documento.delay(i)
+def enfileirar(documento_uuids: list[str]) -> None:
+    for u in documento_uuids:
+        processar_documento.delay(u)

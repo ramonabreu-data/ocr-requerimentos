@@ -25,25 +25,25 @@ COLUNAS = [
 
 def linha(doc: Documento) -> dict:
     r = doc.requerimento
-    base = {"documento": str(doc.uuid), "arquivo": doc.nome_original, "status": doc.status,
-            "assinatura": doc.assinatura_tipo or ""}
+    base = {"documento": doc.uuid, "arquivo": doc.arquivo.nome_original, "status": doc.status,
+            "assinatura": doc.assinatura.tipo or ""}
     if r is None:
         return {**base, "pendencias": doc.erro or ""}
     return {
         **base,
         "requerente": r.requerente_nome or "", "cpf_cnpj": r.cpf_cnpj or "",
-        "procedimento": r.procedimento_texto or "", "intervencao": r.tipo_intervencao_texto or "",
-        "municipio": r.municipio_texto or "", "localidade": r.localidade or "",
-        "latitude": float(r.latitude) if r.latitude is not None else "",
-        "longitude": float(r.longitude) if r.longitude is not None else "",
-        "finalidades": ", ".join(f.finalidade_texto or "" for f in r.finalidades if f.valido),
-        "area_total_ha": float(sum((i.area_ha or 0) for i in r.irrigacao)) if r.irrigacao else "",
+        "procedimento": r.procedimento or "", "intervencao": r.tipo_intervencao or "",
+        "municipio": r.municipio or "", "localidade": r.localidade or "",
+        "latitude": r.latitude if r.latitude is not None else "",
+        "longitude": r.longitude if r.longitude is not None else "",
+        "finalidades": ", ".join(f.texto or "" for f in r.finalidades if f.valido),
+        "area_total_ha": float(round(sum((i.area_ha or 0) for i in r.irrigacao), 4)) if r.irrigacao else "",
         "detalhes": " | ".join(
-            f"{f.finalidade_texto}: {resumo_detalhes(f.chave, f.detalhes)}"
+            f"{f.texto}: {resumo_detalhes(f.chave, f.detalhes)}"
             for f in r.finalidades if f.detalhes and f.chave != "irrigacao" and resumo_detalhes(f.chave, f.detalhes)
         ),
         "data": r.data_documento.strftime("%d/%m/%Y") if r.data_documento else "",
-        "confianca": float(r.confianca_geral) if r.confianca_geral is not None else "",
+        "confianca": r.confianca_geral if r.confianca_geral is not None else "",
         "pendencias": " | ".join(r.pendencias or []),
     }
 
@@ -80,9 +80,8 @@ def para_xlsx(docs: Iterable[Documento]) -> bytes:
     for d in docs:
         if d.requerimento:
             for it in d.requerimento.irrigacao:
-                wi.append([str(d.uuid), d.requerimento.requerente_nome or "", it.ordem, it.sistema_texto,
-                           float(it.area_ha) if it.area_ha is not None else None, it.cultura_texto,
-                           float(it.confianca) if it.confianca is not None else None])
+                wi.append([d.uuid, d.requerimento.requerente_nome or "", it.ordem, it.sistema, it.area_ha,
+                           it.cultura, it.confianca])
     _formatar(wi)
 
     wd = wb.create_sheet("Detalhes das finalidades")
@@ -94,7 +93,7 @@ def para_xlsx(docs: Iterable[Documento]) -> bytes:
             if f.chave == "irrigacao":
                 continue  # já na aba Irrigação
             for item, campo, valor in linhas_detalhes(f.chave, f.detalhes):
-                wd.append([str(d.uuid), d.requerimento.requerente_nome or "", f.finalidade_texto, item, campo, valor])
+                wd.append([d.uuid, d.requerimento.requerente_nome or "", f.texto, item, campo, valor])
     _formatar(wd)
     out = io.BytesIO()
     wb.save(out)

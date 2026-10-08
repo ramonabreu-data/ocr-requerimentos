@@ -1,0 +1,59 @@
+{
+  "additionalProperties": false,
+  "description": "Contadores e situação do lote são calculados a partir dos documentos (índice), não gravados aqui.",
+  "properties": {
+    "schema_versao": {
+      "default": 1,
+      "title": "Schema Versao",
+      "type": "integer"
+    },
+    "uuid": {
+      "title": "Uuid",
+      "type": "string"
+    },
+    "nome": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Nome"
+    },
+    "origem": {
+      "enum": [
+        "upload",
+        "zip",
+        "pasta_monitorada"
+      ],
+      "title": "Origem",
+      "type": "string"
+    },
+    "criado_por_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Criado Por Id"
+    },
+    "criado_em": {
+      "format": "date-time",
+      "title": "Criado Em",
+      "type": "string"
+    }
+  },
+  "required": [
+    "uuid",
+    "origem"
+  ],
+  "title": "Lote",
+  "type": "object"
+}

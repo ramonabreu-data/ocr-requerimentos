@@ -1,292 +1,280 @@
-"""Modelos do schema `ocr`. As tabelas do SIGA (schema public) são só lidas, nunca mapeadas aqui."""
+"""Contrato dos arquivos JSON que a ferramenta grava no armazenamento (bucket). Eles são a fonte da verdade:
+não há banco de dados da ferramenta.
+
+    dados/documentos/{uuid}.json   um documento lido: arquivo, situação, requerimento extraído, cada campo
+                                   com valor atual, confiança, leitura original do OCR e posição na folha,
+                                   e o histórico de revisões
+    dados/paginas/{uuid}.json      texto e palavras do OCR, com posição, de cada página (grande; separado)
+    dados/lotes/{uuid}.json        um envio (upload, ZIP ou pasta do scanner)
+
+Toda gravação passa por estes modelos: um documento que não respeite as regras abaixo não chega ao
+bucket (o que antes eram restrições CHECK/UNIQUE do banco). `SCHEMA_VERSAO` sobe quando o formato muda;
+`atualizar_formato` converte arquivos antigos na leitura. O JSON Schema publicado em
+docs/contrato-json/ é gerado daqui (python -m ocr_requerimentos.ferramentas json-schema)."""
 from __future__ import annotations
 
-import uuid as _uuid
-from datetime import date, datetime
-from decimal import Decimal
-from functools import lru_cache
-from typing import Any
+from datetime import date, datetime, timezone
+from typing import Annotated, Any, Literal
 
-from geoalchemy2 import Geometry
-from sqlalchemy import (
-    BigInteger,
-    Boolean,
-    CHAR,
-    Date,
-    DateTime,
-    ForeignKey,
-    Integer,
-    Numeric,
-    SmallInteger,
-    String,
-    Text,
-    UniqueConstraint,
-    create_engine,
-    func,
-)
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .config import config
+SCHEMA_VERSAO = 1
 
-SCHEMA = "ocr"
+StatusDocumento = Literal["recebido", "processando", "extraido", "revisao", "validado", "erro", "dividido"]
+STATUS_DOCUMENTO: tuple[str, ...] = StatusDocumento.__args__  # type: ignore[attr-defined]
+Confianca = Annotated[float, Field(ge=0, le=100)]
 
 
-class Base(DeclarativeBase):
-    pass
+def agora() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-def _uuid_col():
-    return mapped_column(UUID(as_uuid=True), unique=True, nullable=False, default=_uuid.uuid4)
+class Modelo(BaseModel):
+    model_config = ConfigDict(extra="forbid", validate_assignment=False)
 
 
-def _agora():
-    return mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+# ----------------------------------------------------------------- campos lidos
+class LeituraOriginalOcr(Modelo):
+    """O que o OCR leu neste campo na última leitura do documento, antes de qualquer correção manual.
+    Não muda quando o revisor corrige o campo: é a base das análises de acurácia."""
+
+    valor_lido: str | None = Field(description="Texto lido pelo OCR (ou do PDF com texto), sem correção.")
+    confianca_ocr: Confianca | None = Field(description="Confiança (0–100) da leitura pelo OCR.")
 
 
-class Lote(Base):
-    __tablename__ = "lote"
-    __table_args__ = {"schema": SCHEMA}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    uuid: Mapped[_uuid.UUID] = _uuid_col()
-    nome: Mapped[str | None] = mapped_column(String(200))
-    origem: Mapped[str] = mapped_column(String(20), nullable=False)  # upload | zip | pasta_monitorada
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")
-    total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    processados: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    em_revisao: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    validados: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    com_erro: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    criado_por_id: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = _agora()
-    finalizado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    documentos: Mapped[list["Documento"]] = relationship(back_populates="lote")  # lote de origem
-
-
-class LoteDocumento(Base):
-    """Documentos de cada lote. Um arquivo repetido entra em outro lote sem virar outro documento."""
-
-    __tablename__ = "lote_documento"
-    __table_args__ = {"schema": SCHEMA}
-
-    lote_id: Mapped[int] = mapped_column(ForeignKey(f"{SCHEMA}.lote.id", ondelete="CASCADE"), primary_key=True)
-    documento_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{SCHEMA}.documento.id", ondelete="CASCADE"), primary_key=True, index=True
-    )
-    nome_arquivo: Mapped[str | None] = mapped_column(String(255))
-    created_at: Mapped[datetime] = _agora()
-
-
-class Documento(Base):
-    __tablename__ = "documento"
-    __table_args__ = {"schema": SCHEMA}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    uuid: Mapped[_uuid.UUID] = _uuid_col()
-    lote_id: Mapped[int | None] = mapped_column(ForeignKey(f"{SCHEMA}.lote.id", ondelete="SET NULL"), index=True)
-    documento_pai_id: Mapped[int | None] = mapped_column(ForeignKey(f"{SCHEMA}.documento.id", ondelete="CASCADE"))
-    nome_original: Mapped[str] = mapped_column(String(255), nullable=False)
-    storage_key: Mapped[str] = mapped_column(Text, nullable=False)
-    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    tamanho_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False, unique=True)
-    tipo_entrada: Mapped[str | None] = mapped_column(String(20))
-    metodo_extracao: Mapped[str | None] = mapped_column(String(20))
-    paginas: Mapped[int | None] = mapped_column(SmallInteger)
-    pagina_inicial: Mapped[int | None] = mapped_column(SmallInteger)  # quando veio de divisão
-    assinatura_tipo: Mapped[str | None] = mapped_column(String(20))
-    assinatura_detalhes: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    qr_conteudo: Mapped[str | None] = mapped_column(Text)
-    processo_uuid: Mapped[_uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-    processo_id: Mapped[int | None] = mapped_column(BigInteger)  # public.protocolo_processo
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="recebido", index=True)
-    erro: Mapped[str | None] = mapped_column(Text)
-    tentativas: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
-    duracao_ms: Mapped[int | None] = mapped_column(Integer)
-    versao_pipeline: Mapped[str | None] = mapped_column(String(20))
-    config_extracao: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    criado_por_id: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = _agora()
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+class LocalNaFolha(Modelo):
+    pagina: int | None = Field(None, ge=1, description="Página do documento (1 = primeira).")
+    caixa: list[float] | None = Field(
+        None, min_length=4, max_length=4,
+        description="Retângulo [x0, y0, x1, y1] onde o campo foi lido, em pixels da imagem da página (300 dpi).",
     )
 
-    lote: Mapped[Lote | None] = relationship(back_populates="documentos")
-    paginas_lidas: Mapped[list["Pagina"]] = relationship(
-        back_populates="documento", cascade="all, delete-orphan", order_by="Pagina.numero"
+
+class ValidacaoCampo(Modelo):
+    valido: bool | None = Field(None, description="O valor atual passou nas regras (formato, listas do SIGA...).")
+    obrigatorio: bool = False
+    mensagem: str | None = Field(None, description="Motivo da pendência ou aviso, quando há.")
+
+
+class Campo(Modelo):
+    """Um campo do requerimento. `indice` diferencia itens de listas: posição da finalidade, linha da
+    tabela de irrigação ou item dos detalhes de uma finalidade."""
+
+    campo: str = Field(min_length=1)
+    indice: int | None = None
+    valor_atual: str | None = Field(
+        description="Texto atual do campo: o lido pelo OCR ou, se `corrigido_manualmente`, o digitado na revisão."
     )
-    requerimento: Mapped["Requerimento | None"] = relationship(
-        back_populates="documento", cascade="all, delete-orphan", uselist=False
+    valor_atual_normalizado: str | None = Field(description="valor_atual depois da normalização (CPF com máscara, "
+                                                            "coordenada em graus decimais, nome da lista do SIGA...).")
+    confianca_atual: Confianca | None = Field(description="Confiança do valor atual; 100 quando corrigido à mão.")
+    corrigido_manualmente: bool = False
+    leitura_original_ocr: LeituraOriginalOcr | None = Field(
+        description="Leitura original do OCR; nula quando o campo não foi lido e foi incluído na revisão."
     )
-    filhos: Mapped[list["Documento"]] = relationship(remote_side=[documento_pai_id], viewonly=True)
+    local_na_folha: LocalNaFolha = Field(default_factory=LocalNaFolha)
+    validacao: ValidacaoCampo = Field(default_factory=ValidacaoCampo)
 
 
-class Pagina(Base):
-    __tablename__ = "pagina"
-    __table_args__ = (UniqueConstraint("documento_id", "numero"), {"schema": SCHEMA})
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    documento_id: Mapped[int] = mapped_column(ForeignKey(f"{SCHEMA}.documento.id", ondelete="CASCADE"), nullable=False)
-    numero: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    largura: Mapped[int | None] = mapped_column(Integer)
-    altura: Mapped[int | None] = mapped_column(Integer)
-    imagem_key: Mapped[str | None] = mapped_column(Text)
-    angulo_correcao: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    metodo: Mapped[str | None] = mapped_column(String(20))
-    motor_ocr: Mapped[str | None] = mapped_column(String(20))
-    texto_bruto: Mapped[str | None] = mapped_column(Text)
-    ocr_json: Mapped[list[Any] | None] = mapped_column(JSONB)
-    confianca_media: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-
-    documento: Mapped[Documento] = relationship(back_populates="paginas_lidas")
+# ----------------------------------------------------------------- requerimento
+class Finalidade(Modelo):
+    texto: str | None
+    tipo_finalidade_id: int | None = Field(None, description="outorga_tipofinalidadeuso.id no SIGA.")
+    confianca: Confianca | None = None
+    valido: bool = False
+    chave: str | None = Field(None, description="Definição da finalidade (extracao/finalidades.py), ex.: criacao_animal.")
+    detalhes: dict[str, Any] | None = Field(None, description="Dados próprios da finalidade, já normalizados.")
 
 
-class Requerimento(Base):
-    __tablename__ = "requerimento"
-    __table_args__ = {"schema": SCHEMA}
+class LinhaIrrigacao(Modelo):
+    ordem: int = Field(ge=1)
+    sistema: str | None
+    sistema_id: int | None = Field(None, description="Posição (1, 2, ...) na lista de sistemas do formulário.")
+    area_ha: float | None = Field(None, ge=0)
+    cultura: str | None
+    cultura_id: int | None = Field(None, description="Posição (1, 2, ...) na lista de culturas do formulário.")
+    confianca: Confianca | None = None
+    valido: bool = False
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    documento_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{SCHEMA}.documento.id", ondelete="CASCADE"), nullable=False, unique=True
+
+class Validacao(Modelo):
+    situacao: Literal["pendente", "validado"] = "pendente"
+    validado_por_id: int | None = None
+    validado_em: datetime | None = None
+
+    @model_validator(mode="after")
+    def _validado_tem_data(self) -> "Validacao":
+        if self.situacao == "validado" and self.validado_em is None:
+            raise ValueError("requerimento validado sem data de validação")
+        return self
+
+
+class Requerimento(Modelo):
+    """Dados extraídos (valor atual de cada campo, já normalizado) e o estado da conferência."""
+
+    requerente_nome: str | None = None
+    cpf_cnpj: str | None = Field(None, pattern=r"^[0-9./-]*$")
+    tipo_pessoa: Literal["F", "J"] | None = None
+    pessoa_id: int | None = Field(None, description="core_pessoa.id no SIGA.")
+    procedimento: str | None = None
+    procedimento_id: int | None = None
+    tipo_intervencao: str | None = None
+    tipo_intervencao_id: int | None = None
+    municipio: str | None = None
+    municipio_id: int | None = None
+    localidade: str | None = None
+    latitude: float | None = Field(None, description="Graus decimais, SIRGAS 2000 (srid).")
+    longitude: float | None = None
+    latitude_texto: str | None = Field(None, description="Coordenada como escrita no documento.")
+    longitude_texto: str | None = None
+    srid: int = 4674
+    descricao_usos: str | None = None
+    assinante_nome: str | None = None
+    data_documento: date | None = None
+    finalidades: list[Finalidade] = Field(default_factory=list)
+    irrigacao: list[LinhaIrrigacao] = Field(default_factory=list)
+
+    confianca_geral: Confianca | None = None
+    pendencias: list[str] = Field(default_factory=list)
+    avisos: list[str] = Field(default_factory=list)
+    validacao: Validacao = Field(default_factory=Validacao)
+    versao: int = Field(1, ge=1, description="Sobe a cada gravação; usada para recusar edição concorrente (409).")
+    campos: list[Campo] = Field(default_factory=list,
+                                description="Um item por campo lido: confiança, leitura original e posição.")
+    criado_em: datetime = Field(default_factory=agora)
+    atualizado_em: datetime = Field(default_factory=agora)
+
+    @model_validator(mode="after")
+    def _sem_repeticao(self) -> "Requerimento":
+        vistos: set[tuple[str, int | None]] = set()
+        for c in self.campos:
+            if (c.campo, c.indice) in vistos:
+                raise ValueError(f"campo repetido no requerimento: {c.campo} (índice {c.indice})")
+            vistos.add((c.campo, c.indice))
+        ordens = [i.ordem for i in self.irrigacao]
+        if len(ordens) != len(set(ordens)):
+            raise ValueError("linha de irrigação repetida")
+        return self
+
+
+# ----------------------------------------------------------------- documento
+class Revisao(Modelo):
+    """Uma entrada do histórico. `tipo`:
+    - correcao: o revisor mudou `campo` de `valor_anterior` para `valor_novo`;
+    - validacao_com_pendencias: validado mesmo com pendências; `valor_anterior` = pendências na hora,
+      `valor_novo` = justificativa;
+    - reprocessamento: o documento foi lido de novo e as correções manuais foram reaplicadas."""
+
+    em: datetime = Field(default_factory=agora)
+    usuario_id: int | None = None
+    tipo: Literal["correcao", "validacao_com_pendencias", "reprocessamento"]
+    campo: str | None = None
+    valor_anterior: str | None = None
+    valor_novo: str | None = None
+
+
+class ArquivoOriginal(Modelo):
+    nome_original: str
+    chave: str = Field(description="Onde o arquivo está no armazenamento.")
+    content_type: str
+    tamanho_bytes: int = Field(ge=0)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$", description="O mesmo arquivo nunca é lido duas vezes.")
+
+
+class Leitura(Modelo):
+    """Como a última leitura foi feita (para comparar versões do pipeline nas análises de acurácia)."""
+
+    versao_pipeline: str | None = None
+    configuracao: dict[str, Any] | None = None
+    tipo_entrada: Literal["pdf_texto", "pdf_imagem", "imagem"] | None = None
+    metodo_extracao: Literal["texto_nativo", "ocr", "qrcode+texto_nativo", "qrcode+ocr"] | None = None
+    paginas: int | None = Field(None, ge=0)
+    tentativas: int = Field(0, ge=0)
+    duracao_ms: int | None = None
+
+
+class Assinatura(Modelo):
+    tipo: Literal["digital", "manuscrita", "ausente", "indeterminada"] | None = None
+    detalhes: dict[str, Any] | None = None
+
+
+class QrCode(Modelo):
+    conteudo: str | None = None
+    processo_uuid: str | None = None
+    processo_id: int | None = Field(None, description="protocolo_processo.id no SIGA.")
+
+
+class PaginaLida(Modelo):
+    numero: int = Field(ge=1)
+    largura: int | None = None
+    altura: int | None = None
+    imagem_chave: str | None = Field(None, description="Imagem corrigida da página no armazenamento.")
+    angulo_correcao: float | None = None
+    metodo: Literal["texto_nativo", "ocr"] | None = None
+    motor_ocr: str | None = None
+    confianca_media: Confianca | None = None
+
+
+class VinculoLote(Modelo):
+    lote_uuid: str
+    nome_arquivo: str | None = None
+    em: datetime = Field(default_factory=agora)
+
+
+class Documento(Modelo):
+    schema_versao: int = SCHEMA_VERSAO
+    uuid: str
+    status: StatusDocumento = "recebido"
+    erro: str | None = None
+    arquivo: ArquivoOriginal
+    lote_origem_uuid: str | None = Field(None, description="Lote em que o arquivo chegou pela primeira vez.")
+    lotes: list[VinculoLote] = Field(default_factory=list,
+                                     description="Todos os lotes de que faz parte (reenvio entra no novo lote).")
+    documento_pai_uuid: str | None = Field(None, description="Arquivo com vários requerimentos de onde esta parte saiu.")
+    pagina_inicial: int | None = Field(None, description="Página do arquivo original onde esta parte começa.")
+    partes: list[str] = Field(default_factory=list, description="Partes criadas quando o arquivo foi dividido.")
+    leitura: Leitura = Field(default_factory=Leitura)
+    assinatura: Assinatura = Field(default_factory=Assinatura)
+    qr_code: QrCode | None = None
+    paginas_lidas: list[PaginaLida] = Field(default_factory=list)
+    requerimento: Requerimento | None = None
+    historico_de_revisoes: list[Revisao] = Field(default_factory=list)
+    criado_por_id: int | None = None
+    criado_em: datetime = Field(default_factory=agora)
+    atualizado_em: datetime = Field(default_factory=agora)
+
+    def lote_uuids(self) -> list[str]:
+        return [v.lote_uuid for v in self.lotes]
+
+
+class TextoPagina(Modelo):
+    numero: int = Field(ge=1)
+    texto: str | None = None
+    palavras: list[dict[str, Any]] = Field(
+        default_factory=list, description="Palavras do OCR: t = texto, c = confiança, b = caixa [x0, y0, x1, y1], p = página."
     )
-    requerente_nome: Mapped[str | None] = mapped_column(String(255))
-    cpf_cnpj: Mapped[str | None] = mapped_column(String(18), index=True)
-    tipo_pessoa: Mapped[str | None] = mapped_column(CHAR(1))
-    pessoa_id: Mapped[int | None] = mapped_column(BigInteger)
-    procedimento_texto: Mapped[str | None] = mapped_column(String(200))
-    procedimento_id: Mapped[int | None] = mapped_column(BigInteger)
-    tipo_intervencao_texto: Mapped[str | None] = mapped_column(String(250))
-    tipo_intervencao_id: Mapped[int | None] = mapped_column(BigInteger)
-    municipio_texto: Mapped[str | None] = mapped_column(String(255))
-    municipio_id: Mapped[int | None] = mapped_column(BigInteger)
-    localidade: Mapped[str | None] = mapped_column(String(100))
-    latitude_texto: Mapped[str | None] = mapped_column(String(40))
-    longitude_texto: Mapped[str | None] = mapped_column(String(40))
-    latitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
-    longitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
-    geom = mapped_column(Geometry("POINT", srid=4674), nullable=True)
-    descricao_usos: Mapped[str | None] = mapped_column(Text)
-    assinante_nome: Mapped[str | None] = mapped_column(String(255))
-    data_documento: Mapped[date | None] = mapped_column(Date)
-    confianca_geral: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    pendencias: Mapped[list[str] | None] = mapped_column(JSONB)
-    avisos: Mapped[list[str] | None] = mapped_column(JSONB)
-    status_validacao: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")
-    validado_por_id: Mapped[int | None] = mapped_column(Integer)
-    validado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    versao: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    created_at: Mapped[datetime] = _agora()
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
-    )
-
-    documento: Mapped[Documento] = relationship(back_populates="requerimento")
-    finalidades: Mapped[list["RequerimentoFinalidade"]] = relationship(
-        cascade="all, delete-orphan", order_by="RequerimentoFinalidade.id"
-    )
-    irrigacao: Mapped[list["RequerimentoIrrigacao"]] = relationship(
-        cascade="all, delete-orphan", order_by="RequerimentoIrrigacao.ordem"
-    )
-    campos: Mapped[list["CampoExtraido"]] = relationship(cascade="all, delete-orphan", order_by="CampoExtraido.id")
 
 
-class RequerimentoFinalidade(Base):
-    __tablename__ = "requerimento_finalidade"
-    __table_args__ = {"schema": SCHEMA}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    requerimento_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{SCHEMA}.requerimento.id", ondelete="CASCADE"), nullable=False
-    )
-    finalidade_texto: Mapped[str | None] = mapped_column(String(250))
-    tipo_finalidade_id: Mapped[int | None] = mapped_column(BigInteger)
-    confianca: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    valido: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    chave: Mapped[str | None] = mapped_column(String(40))  # extracao.finalidades (ex.: criacao_animal)
-    detalhes: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # dados próprios, normalizados
+class PaginasDocumento(Modelo):
+    schema_versao: int = SCHEMA_VERSAO
+    documento_uuid: str
+    paginas: list[TextoPagina] = Field(default_factory=list)
 
 
-class Dominio(Base):
-    __tablename__ = "dominio"
-    __table_args__ = (UniqueConstraint("tipo", "valor"), {"schema": SCHEMA})
+class Lote(Modelo):
+    """Contadores e situação do lote são calculados a partir dos documentos (índice), não gravados aqui."""
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    tipo: Mapped[str] = mapped_column(String(30), nullable=False)
-    valor: Mapped[str] = mapped_column(String(150), nullable=False)
-    sinonimos: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
-    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-
-
-class RequerimentoIrrigacao(Base):
-    __tablename__ = "requerimento_irrigacao"
-    __table_args__ = {"schema": SCHEMA}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    requerimento_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{SCHEMA}.requerimento.id", ondelete="CASCADE"), nullable=False
-    )
-    ordem: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    sistema_texto: Mapped[str | None] = mapped_column(String(150))
-    sistema_id: Mapped[int | None] = mapped_column(ForeignKey(f"{SCHEMA}.dominio.id"))
-    area_ha: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
-    cultura_texto: Mapped[str | None] = mapped_column(String(150))
-    cultura_id: Mapped[int | None] = mapped_column(ForeignKey(f"{SCHEMA}.dominio.id"))
-    confianca: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    valido: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    schema_versao: int = SCHEMA_VERSAO
+    uuid: str
+    nome: str | None = None
+    origem: Literal["upload", "zip", "pasta_monitorada"]
+    criado_por_id: int | None = None
+    criado_em: datetime = Field(default_factory=agora)
 
 
-class CampoExtraido(Base):
-    """Um registro por campo lido: valor bruto, normalizado, confiança e posição na página."""
-
-    __tablename__ = "campo_extraido"
-    __table_args__ = {"schema": SCHEMA}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    requerimento_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{SCHEMA}.requerimento.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    campo: Mapped[str] = mapped_column(String(60), nullable=False)
-    indice: Mapped[int | None] = mapped_column(SmallInteger)  # posição em listas (finalidade/irrigação)
-    valor_bruto: Mapped[str | None] = mapped_column(Text)
-    valor_normalizado: Mapped[str | None] = mapped_column(Text)
-    confianca: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    pagina: Mapped[int | None] = mapped_column(SmallInteger)
-    bbox: Mapped[list[float] | None] = mapped_column(JSONB)
-    valido: Mapped[bool | None] = mapped_column(Boolean)
-    obrigatorio: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    corrigido_manual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    mensagem: Mapped[str | None] = mapped_column(Text)
-    valor_ocr: Mapped[str | None] = mapped_column(Text)  # leitura original, mantida após correção
-    confianca_ocr: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-
-
-class Revisao(Base):
-    __tablename__ = "revisao"
-    __table_args__ = {"schema": SCHEMA}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    requerimento_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{SCHEMA}.requerimento.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    campo: Mapped[str] = mapped_column(String(60), nullable=False)
-    valor_anterior: Mapped[str | None] = mapped_column(Text)
-    valor_novo: Mapped[str | None] = mapped_column(Text)
-    usuario_id: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = _agora()
-
-
-@lru_cache
-def engine() -> Engine:
-    return create_engine(config().database_url, pool_pre_ping=True, future=True)
-
-
-@lru_cache
-def fabrica_sessao() -> sessionmaker:
-    return sessionmaker(bind=engine(), expire_on_commit=False)
-
-
-def sessao():
-    return fabrica_sessao()()
+def atualizar_formato(dados: dict[str, Any]) -> dict[str, Any]:
+    """Converte um JSON gravado numa versão anterior do contrato para a atual (nenhuma ainda)."""
+    versao = dados.get("schema_versao", 1)
+    if versao > SCHEMA_VERSAO:
+        raise ValueError(f"arquivo gravado por uma versão mais nova da ferramenta (schema {versao})")
+    return dados

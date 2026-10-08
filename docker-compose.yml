@@ -1,19 +1,19 @@
-# Base (produção): grava no banco de destino definido no .env (DESTINO_DB_* ou DATABASE_URL).
+# Base (produção): os dados ficam em JSON no bucket (S3/MinIO); o Redis guarda a fila e o índice.
+# O banco do SIGA é só lido (SIGA_DB_* ou SIGA_DATABASE_URL no .env).
 #   docker compose -f docker-compose.yml up -d
-# Desenvolvimento (com Postgres/PostGIS e stub do SIGA): docker compose up  (lê também o override)
+# Desenvolvimento (com Postgres/PostGIS fazendo o papel do SIGA): docker compose up  (lê também o override)
 name: ocr-requerimentos
 
-# Banco onde o schema ocr é gravado, lido do .env. DATABASE_URL, se definida, vale sobre as partes
-# DESTINO_DB_* (o serviço monta a URL a partir delas; a senha não precisa ser codificada).
-x-banco: &banco
-  DATABASE_URL: ${DATABASE_URL:-}
-  DESTINO_DB_HOST: ${DESTINO_DB_HOST:-}
-  DESTINO_DB_PORTA: ${DESTINO_DB_PORTA:-5432}
-  DESTINO_DB_NOME: ${DESTINO_DB_NOME:-}
-  DESTINO_DB_USUARIO: ${DESTINO_DB_USUARIO:-}
-  DESTINO_DB_SENHA: ${DESTINO_DB_SENHA:-}
-  DESTINO_DB_SSLMODE: ${DESTINO_DB_SSLMODE:-prefer}
-  CRIAR_VIEWS: ${CRIAR_VIEWS:-true}
+# Banco do SIGA, só leitura. SIGA_DATABASE_URL, se definida, vale sobre as partes SIGA_DB_*
+# (o serviço monta a URL a partir delas; a senha não precisa ser codificada).
+x-siga: &siga
+  SIGA_DATABASE_URL: ${SIGA_DATABASE_URL:-}
+  SIGA_DB_HOST: ${SIGA_DB_HOST:-}
+  SIGA_DB_PORTA: ${SIGA_DB_PORTA:-5432}
+  SIGA_DB_NOME: ${SIGA_DB_NOME:-}
+  SIGA_DB_USUARIO: ${SIGA_DB_USUARIO:-}
+  SIGA_DB_SENHA: ${SIGA_DB_SENHA:-}
+  SIGA_DB_SSLMODE: ${SIGA_DB_SSLMODE:-prefer}
 
 x-ocr: &ocr
   build:
@@ -23,17 +23,21 @@ x-ocr: &ocr
   image: ocr-requerimentos/servico:${VERSAO:-latest}
   env_file: .env
   environment:
-    <<: *banco
+    <<: *siga
     STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
     S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
     CELERY_BROKER_URL: redis://redis:6379/2
+    REDIS_URL: redis://redis:6379/3
   restart: unless-stopped
 
 services:
+  # Fila e índice dos JSONs. Persistência em AOF; noeviction: com memória cheia o Redis recusa gravações
+  # em vez de descartar chaves do índice. Se perder os dados, refaça o índice a partir do bucket:
+  #   docker compose run --rm api python -m ocr_requerimentos.ferramentas reconstruir-indice
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     volumes: [redis:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -54,15 +58,25 @@ services:
       interval: 10s
       retries: 5
 
-  migrar:
-    <<: *ocr
-    command: ["alembic", "upgrade", "head"]
+  # Cria o bucket e liga o versionamento: cada regravação de um JSON guarda a versão anterior.
+  bucket:
+    image: minio/minio:latest  # traz o cliente mc
+    depends_on:
+      minio: { condition: service_healthy }
+    environment:
+      S3_BUCKET: ${S3_BUCKET:-ocr-requerimentos}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-ocr}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-ocr-segredo-troque}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - mc alias set local http://minio:9000 "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY" &&
+        mc mb --ignore-existing "local/$$S3_BUCKET" && mc version enable "local/$$S3_BUCKET"
     restart: "no"
 
   api:
     <<: *ocr
     depends_on:
-      migrar: { condition: service_completed_successfully }
+      bucket: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
     command: ["uvicorn", "ocr_requerimentos.api.main:app", "--host", "0.0.0.0", "--port", "8000",
@@ -72,7 +86,7 @@ services:
   worker:
     <<: *ocr
     depends_on:
-      migrar: { condition: service_completed_successfully }
+      bucket: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
     # escalar: docker compose up -d --scale worker=4
@@ -83,14 +97,15 @@ services:
   watcher:
     <<: *ocr
     depends_on:
-      migrar: { condition: service_completed_successfully }
+      bucket: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
     command: ["python", "-m", "ocr_requerimentos.watcher"]
     environment:
-      <<: *banco
+      <<: *siga
       STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
       CELERY_BROKER_URL: redis://redis:6379/2
+      REDIS_URL: redis://redis:6379/3
       PASTA_MONITORADA: /data/entrada
     volumes:
       - ${PASTA_SCANNER:-./entrada}:/data/entrada

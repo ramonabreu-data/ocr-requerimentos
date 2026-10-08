@@ -6,30 +6,31 @@ import mimetypes
 import re
 import uuid as _uuid
 import zipfile
-from datetime import date, datetime
+from datetime import date, datetime, time as dtime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, Field
-from sqlalchemy import Date, cast, func, or_, select
-from sqlalchemy.orm import Session, selectinload
+from pydantic import BaseModel, Field, ValidationError
 
 from .. import exportacao
-from ..armazenamento import armazenamento
 from ..config import config
 from ..dados_referencia import DOMINIOS
 from ..extracao.finalidades import POR_CHAVE, FinalidadeDef, rotulo_campo
 from ..extracao.validacao import ROTULOS
-from ..modelos import CampoExtraido, Documento, Dominio, Lote, LoteDocumento, Requerimento, Revisao, sessao
+from ..modelos import Campo, Documento, Lote, Revisao
 from ..pipeline import persistencia as P
+from ..repositorio import FINAIS, PENDENTES, TravaOcupada, publico, repositorio, resumo_documento
 from ..worker import enfileirar
 
 app = FastAPI(
     title="OCR de Requerimentos — SIGA",
-    version="1.0.0",
-    description="Extração de dados de requerimentos digitalizados (PDF ou imagem), individual ou em lote.",
+    version="2.0.0",
+    description="Extração de dados de requerimentos digitalizados (PDF ou imagem), individual ou em lote. "
+                "Os dados ficam em arquivos JSON no armazenamento (ver /docs do projeto).",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -39,14 +40,10 @@ app.add_middleware(
 )
 
 EXTENSOES_ACEITAS = (".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp", ".heic", ".heif")
+FUSO = ZoneInfo("America/Fortaleza")  # Piauí, UTC-3 o ano todo
 
 
 # ----------------------------------------------------------------- dependências
-def db():
-    with sessao() as s:
-        yield s
-
-
 def autenticar(x_api_key: str | None = Header(default=None)) -> None:
     chave = config().api_key
     if chave and x_api_key != chave:
@@ -63,30 +60,22 @@ def usuario(x_usuario_id: str | None = Header(default=None)) -> int | None:
 Protegido = [Depends(autenticar)]
 
 
-def _doc(s: Session, uid: str) -> Documento:
+def _uuid_valido(uid: str, o_que: str) -> str:
     try:
-        u = _uuid.UUID(uid)
+        return str(_uuid.UUID(uid))
     except ValueError:
-        raise HTTPException(404, "documento não encontrado")
-    doc = s.scalar(
-        select(Documento).where(Documento.uuid == u).options(
-            selectinload(Documento.requerimento).selectinload(Requerimento.campos),
-            selectinload(Documento.requerimento).selectinload(Requerimento.finalidades),
-            selectinload(Documento.requerimento).selectinload(Requerimento.irrigacao),
-            selectinload(Documento.paginas_lidas),
-        )
-    )
+        raise HTTPException(404, f"{o_que} não encontrado")
+
+
+def _doc(uid: str) -> Documento:
+    doc = repositorio().obter(_uuid_valido(uid, "documento"))
     if doc is None:
         raise HTTPException(404, "documento não encontrado")
     return doc
 
 
-def _lote(s: Session, uid: str) -> Lote:
-    try:
-        u = _uuid.UUID(uid)
-    except ValueError:
-        raise HTTPException(404, "lote não encontrado")
-    lote = s.scalar(select(Lote).where(Lote.uuid == u))
+def _lote(uid: str) -> Lote:
+    lote = repositorio().obter_lote(_uuid_valido(uid, "lote"))
     if lote is None:
         raise HTTPException(404, "lote não encontrado")
     return lote
@@ -107,62 +96,31 @@ def _iso(v: datetime | None) -> str | None:
     return v.isoformat() if v else None
 
 
-def resumo_documento(d: Documento) -> dict[str, Any]:
-    r = d.requerimento
-    return {
-        "uuid": str(d.uuid),
-        "nome_original": d.nome_original,
-        "status": d.status,
-        "erro": d.erro,
-        "tipo_entrada": d.tipo_entrada,
-        "metodo_extracao": d.metodo_extracao,
-        "paginas": d.paginas,
-        "assinatura_tipo": d.assinatura_tipo,
-        "lote_uuid": str(d.lote.uuid) if d.lote else None,
-        "documento_pai_uuid": None,
-        "requerente_nome": r.requerente_nome if r else None,
-        "cpf_cnpj": r.cpf_cnpj if r else None,
-        "municipio": r.municipio_texto if r else None,
-        "procedimento": r.procedimento_texto if r else None,
-        "data_documento": r.data_documento.isoformat() if r and r.data_documento else None,
-        "validado_em": _iso(r.validado_em) if r else None,
-        "confianca_geral": float(r.confianca_geral) if r and r.confianca_geral is not None else None,
-        "pendencias": (r.pendencias or []) if r else [],
-        "created_at": _iso(d.created_at),
-        "updated_at": _iso(d.updated_at),
-        "duracao_ms": d.duracao_ms,
-    }
-
-
-def _campo(c: CampoExtraido) -> dict[str, Any]:
+def _campo(c: Campo) -> dict[str, Any]:
+    original = c.leitura_original_ocr
     return {
         "campo": c.campo, "rotulo": ROTULOS.get(c.campo) or rotulo_campo(c.campo) or c.campo, "indice": c.indice,
-        "valor_bruto": c.valor_bruto, "valor_normalizado": c.valor_normalizado,
-        "confianca": float(c.confianca) if c.confianca is not None else None,
-        "pagina": c.pagina, "bbox": c.bbox, "valido": c.valido, "obrigatorio": c.obrigatorio,
-        "corrigido_manual": c.corrigido_manual, "mensagem": c.mensagem,
+        "valor_bruto": c.valor_atual, "valor_normalizado": c.valor_atual_normalizado,
+        "confianca": c.confianca_atual, "pagina": c.local_na_folha.pagina, "bbox": c.local_na_folha.caixa,
+        "valido": c.validacao.valido, "obrigatorio": c.validacao.obrigatorio,
+        "corrigido_manual": c.corrigido_manualmente, "mensagem": c.validacao.mensagem,
+        "leitura_original_ocr": {"valor": original.valor_lido, "confianca": original.confianca_ocr} if original else None,
     }
 
 
-def detalhe_documento(s: Session, d: Documento) -> dict[str, Any]:
+def detalhe_documento(d: Documento) -> dict[str, Any]:
     out = resumo_documento(d)
-    if d.documento_pai_id:
-        pai = s.get(Documento, d.documento_pai_id)
-        out["documento_pai_uuid"] = str(pai.uuid) if pai else None
-    out["filhos"] = [
-        resumo_documento(f) for f in s.scalars(
-            select(Documento).where(Documento.documento_pai_id == d.id).order_by(Documento.pagina_inicial)
-        )
-    ]
-    out["assinatura_detalhes"] = d.assinatura_detalhes
-    out["qr_conteudo"] = d.qr_conteudo
-    out["processo_uuid"] = str(d.processo_uuid) if d.processo_uuid else None
-    out["processo_id"] = d.processo_id
+    repo = repositorio()
+    filhos = sorted(repo.resumos(d.partes), key=lambda r: (r.get("_pagina_inicial") or 0, r["_ts"]))
+    out["filhos"] = [publico(r) for r in filhos]
+    out["assinatura_detalhes"] = d.assinatura.detalhes
+    out["qr_conteudo"] = d.qr_code.conteudo if d.qr_code else None
+    out["processo_uuid"] = d.qr_code.processo_uuid if d.qr_code else None
+    out["processo_id"] = d.qr_code.processo_id if d.qr_code else None
+    out["versao_pipeline"] = d.leitura.versao_pipeline
     out["paginas_lidas"] = [
         {"numero": p.numero, "largura": p.largura, "altura": p.altura, "metodo": p.metodo, "motor_ocr": p.motor_ocr,
-         "confianca_media": float(p.confianca_media) if p.confianca_media is not None else None,
-         "angulo_correcao": float(p.angulo_correcao) if p.angulo_correcao is not None else None,
-         "tem_imagem": bool(p.imagem_key)}
+         "confianca_media": p.confianca_media, "angulo_correcao": p.angulo_correcao, "tem_imagem": bool(p.imagem_chave)}
         for p in d.paginas_lidas
     ]
     r = d.requerimento
@@ -171,32 +129,24 @@ def detalhe_documento(s: Session, d: Documento) -> dict[str, Any]:
         return out
     out["requerimento"] = {
         "requerente_nome": r.requerente_nome, "cpf_cnpj": r.cpf_cnpj, "tipo_pessoa": r.tipo_pessoa,
-        "pessoa_id": r.pessoa_id, "procedimento": r.procedimento_texto, "procedimento_id": r.procedimento_id,
-        "tipo_intervencao": r.tipo_intervencao_texto, "tipo_intervencao_id": r.tipo_intervencao_id,
-        "municipio": r.municipio_texto, "municipio_id": r.municipio_id, "localidade": r.localidade,
-        "latitude": float(r.latitude) if r.latitude is not None else None,
-        "longitude": float(r.longitude) if r.longitude is not None else None,
+        "pessoa_id": r.pessoa_id, "procedimento": r.procedimento, "procedimento_id": r.procedimento_id,
+        "tipo_intervencao": r.tipo_intervencao, "tipo_intervencao_id": r.tipo_intervencao_id,
+        "municipio": r.municipio, "municipio_id": r.municipio_id, "localidade": r.localidade,
+        "latitude": r.latitude, "longitude": r.longitude,
         "latitude_texto": r.latitude_texto, "longitude_texto": r.longitude_texto,
         "descricao_usos": r.descricao_usos, "assinante_nome": r.assinante_nome,
         "data_documento": r.data_documento.isoformat() if r.data_documento else None,
-        "confianca_geral": float(r.confianca_geral) if r.confianca_geral is not None else None,
-        "pendencias": r.pendencias or [], "avisos": r.avisos or [],
-        "status_validacao": r.status_validacao, "validado_por_id": r.validado_por_id,
-        "validado_em": _iso(r.validado_em), "versao": r.versao,
+        "confianca_geral": r.confianca_geral,
+        "pendencias": r.pendencias, "avisos": r.avisos,
+        "status_validacao": r.validacao.situacao, "validado_por_id": r.validacao.validado_por_id,
+        "validado_em": _iso(r.validacao.validado_em), "versao": r.versao,
         "finalidades": [
-            {"texto": f.finalidade_texto, "tipo_finalidade_id": f.tipo_finalidade_id,
-             "confianca": float(f.confianca) if f.confianca is not None else None, "valido": f.valido,
-             "chave": f.chave, "detalhes": f.detalhes,
+            {"texto": f.texto, "tipo_finalidade_id": f.tipo_finalidade_id, "confianca": f.confianca,
+             "valido": f.valido, "chave": f.chave, "detalhes": f.detalhes,
              "estrutura": _estrutura(POR_CHAVE[f.chave]) if f.chave in POR_CHAVE else None}
             for f in r.finalidades
         ],
-        "irrigacao": [
-            {"ordem": i.ordem, "sistema": i.sistema_texto, "sistema_id": i.sistema_id,
-             "area_ha": float(i.area_ha) if i.area_ha is not None else None, "cultura": i.cultura_texto,
-             "cultura_id": i.cultura_id, "confianca": float(i.confianca) if i.confianca is not None else None,
-             "valido": i.valido}
-            for i in r.irrigacao
-        ],
+        "irrigacao": [i.model_dump() for i in r.irrigacao],
         "campos": [_campo(c) for c in r.campos],
     }
     return out
@@ -211,10 +161,17 @@ def _estrutura(f: FinalidadeDef) -> dict[str, Any]:
 
 
 def resumo_lote(l: Lote) -> dict[str, Any]:
+    repo = repositorio()
+    cont = repo.contagem_lote(l.uuid)
+    pendentes = sum(cont.get(s, 0) for s in PENDENTES)
+    com_erro = cont.get("erro", 0)
     return {
-        "uuid": str(l.uuid), "nome": l.nome, "origem": l.origem, "status": l.status, "total": l.total,
-        "processados": l.processados, "em_revisao": l.em_revisao, "validados": l.validados,
-        "com_erro": l.com_erro, "created_at": _iso(l.created_at), "finalizado_em": _iso(l.finalizado_em),
+        "uuid": l.uuid, "nome": l.nome, "origem": l.origem,
+        "status": "processando" if pendentes else ("concluido_com_erros" if com_erro else "concluido"),
+        "total": sum(n for s, n in cont.items() if s != "dividido"),
+        "processados": sum(cont.get(s, 0) for s in FINAIS), "em_revisao": cont.get("revisao", 0),
+        "validados": cont.get("validado", 0), "com_erro": com_erro,
+        "created_at": _iso(l.criado_em), "finalizado_em": None if pendentes else repo.finalizado_em(l.uuid),
     }
 
 
@@ -257,25 +214,23 @@ def _entradas_zip(conteudo: bytes, nome_zip: str) -> list[tuple[str, bytes]]:
 
 # ----------------------------------------------------------------- rotas
 @app.get("/saude")
-def saude(s: Session = Depends(db)):
-    s.execute(select(1))
+def saude():
+    repositorio().ping()
     return {"status": "ok", "motor_ocr": config().motor_ocr}
 
 
 @app.post("/documentos", status_code=201, dependencies=Protegido)
-async def enviar_documento(
-    arquivo: UploadFile = File(...), s: Session = Depends(db), usuario_id: int | None = Depends(usuario)
-):
+async def enviar_documento(arquivo: UploadFile = File(...), usuario_id: int | None = Depends(usuario)):
     dados = await _ler_upload(arquivo)
     nome = arquivo.filename or "documento"
     if nome.lower().endswith(".zip"):
         raise HTTPException(400, "para enviar um ZIP use o envio em lote (/lotes)")
-    reg = P.registrar_documento(s, dados, nome, _content_type(nome, arquivo.content_type), usuario_id=usuario_id)
-    s.commit()
+    reg = await run_in_threadpool(P.registrar_documento, dados, nome, _content_type(nome, arquivo.content_type),
+                                  usuario_id=usuario_id)
     if not reg.duplicado:
-        enfileirar([reg.documento.id])
-    s.refresh(reg.documento)
-    corpo = {**resumo_documento(reg.documento), "duplicado": reg.duplicado}
+        await run_in_threadpool(enfileirar, [reg.documento.uuid])
+    doc = repositorio().obter(reg.documento.uuid) or reg.documento
+    corpo = {**resumo_documento(doc), "duplicado": reg.duplicado}
     return JSONResponse(corpo, status_code=200 if reg.duplicado else 201)
 
 
@@ -283,7 +238,6 @@ async def enviar_documento(
 async def criar_lote(
     arquivos: list[UploadFile] = File(...),
     nome: str | None = Form(default=None),
-    s: Session = Depends(db),
     usuario_id: int | None = Depends(usuario),
 ):
     entradas: list[tuple[str, bytes]] = []
@@ -298,78 +252,71 @@ async def criar_lote(
             entradas.append((fn, dados))
     if not entradas:
         raise HTTPException(400, "nenhum arquivo encontrado no envio")
-    lote = Lote(nome=(nome or f"Lote de {datetime.now():%d/%m/%Y %H:%M}")[:200], origem=origem,
-                status="processando", criado_por_id=usuario_id)
-    s.add(lote)
-    s.flush()
+    return await run_in_threadpool(_registrar_lote, entradas, nome, origem, usuario_id)
+
+
+def _registrar_lote(entradas: list[tuple[str, bytes]], nome: str | None, origem: str, usuario_id: int | None):
+    repo = repositorio()
+    lote = Lote(uuid=str(_uuid.uuid4()), nome=nome or f"Lote de {datetime.now(FUSO):%d/%m/%Y %H:%M}",
+                origem=origem, criado_por_id=usuario_id)
+    repo.salvar_lote(lote)
     novos, duplicados, ignorados = [], [], []
     for fn, dados in entradas:
         if not fn.lower().endswith(EXTENSOES_ACEITAS):
             ignorados.append(fn)  # entra mesmo assim: vira documento com erro, visível no lote
-        reg = P.registrar_documento(s, dados, fn, _content_type(fn, None), lote=lote, usuario_id=usuario_id)
-        if reg.duplicado:
-            duplicados.append((fn, reg.documento))
-        else:
-            novos.append(reg.documento)
-    # arquivo já enviado antes não é lido de novo, mas passa a fazer parte deste lote também
-    s.commit()
-    P.atualizar_lote(s, lote.id)
-    enfileirar([d.id for d in novos])
-    s.refresh(lote)
+        reg = P.registrar_documento(dados, fn, _content_type(fn, None), lote_uuid=lote.uuid, usuario_id=usuario_id)
+        # arquivo já enviado antes não é lido de novo, mas passa a fazer parte deste lote também
+        (duplicados if reg.duplicado else novos).append((fn, reg.documento))
+    enfileirar([d.uuid for _, d in novos])
     return {
         **resumo_lote(lote),
         "recebidos": len(entradas),
         "novos": len(novos),
-        "duplicados": [{"arquivo": fn, "documento_uuid": str(d.uuid), "status": d.status} for fn, d in duplicados],
+        "duplicados": [{"arquivo": fn, "documento_uuid": d.uuid, "status": d.status} for fn, d in duplicados],
         "formato_nao_suportado": ignorados,
     }
 
 
 @app.get("/lotes", dependencies=Protegido)
-def listar_lotes(pagina: int = Query(1, ge=1), tamanho: int = Query(20, ge=1, le=100), s: Session = Depends(db)):
-    total = s.scalar(select(func.count()).select_from(Lote))
-    lotes = s.scalars(select(Lote).order_by(Lote.created_at.desc()).offset((pagina - 1) * tamanho).limit(tamanho))
+def listar_lotes(pagina: int = Query(1, ge=1), tamanho: int = Query(20, ge=1, le=100)):
+    total, lotes = repositorio().listar_lotes(pagina, tamanho)
     return {"total": total, "itens": [resumo_lote(l) for l in lotes]}
 
 
-def _docs_do_lote(lote: Lote):
-    return select(Documento).join(LoteDocumento, LoteDocumento.documento_id == Documento.id).where(
-        LoteDocumento.lote_id == lote.id
-    )
-
-
 @app.get("/lotes/{uid}", dependencies=Protegido)
-def obter_lote(uid: str, s: Session = Depends(db)):
-    lote = _lote(s, uid)
-    docs = s.scalars(
-        _docs_do_lote(lote).options(selectinload(Documento.requerimento), selectinload(Documento.lote))
-        .order_by(Documento.created_at, Documento.pagina_inicial)
-    ).all()
-    return {**resumo_lote(lote), "documentos": [resumo_documento(d) for d in docs]}
+def obter_lote(uid: str):
+    lote = _lote(uid)
+    repo = repositorio()
+    docs = repo.resumos(repo.uuids_do_lote(lote.uuid))
+    docs.sort(key=lambda r: (r["_ts"], r.get("_pagina_inicial") or 0))
+    return {**resumo_lote(lote), "documentos": [publico(r) for r in docs]}
 
 
 @app.post("/lotes/{uid}/reprocessar-erros", dependencies=Protegido)
-def reprocessar_erros(uid: str, s: Session = Depends(db)):
-    lote = _lote(s, uid)
-    docs = s.scalars(_docs_do_lote(lote).where(Documento.status == "erro")).all()
-    for d in docs:
-        d.status = "recebido"
-    s.commit()
-    P.atualizar_lote(s, lote.id)
-    enfileirar([d.id for d in docs])
-    return {"reenfileirados": len(docs)}
+def reprocessar_erros(uid: str):
+    lote = _lote(uid)
+    repo = repositorio()
+    reenfileirar = []
+    for res in repo.resumos(repo.uuids_do_lote(lote.uuid)):
+        if res["status"] != "erro":
+            continue
+        with repo.travar(res["uuid"]):
+            d = repo.obter(res["uuid"])
+            if d.status == "erro":
+                d.status = "recebido"
+                repo.salvar(d)
+                reenfileirar.append(d.uuid)
+    enfileirar(reenfileirar)
+    return {"reenfileirados": len(reenfileirar)}
 
 
 @app.get("/lotes/{uid}/exportar", dependencies=Protegido)
-def exportar_lote(uid: str, formato: str = Query("csv", pattern="^(csv|xlsx)$"), s: Session = Depends(db)):
-    lote = _lote(s, uid)
-    docs = s.scalars(
-        _docs_do_lote(lote).where(Documento.status != "dividido")
-        .options(selectinload(Documento.requerimento).selectinload(Requerimento.finalidades),
-                 selectinload(Documento.requerimento).selectinload(Requerimento.irrigacao))
-        .order_by(Documento.created_at)
-    ).all()
-    nome = f"lote-{str(lote.uuid)[:8]}"
+def exportar_lote(uid: str, formato: str = Query("csv", pattern="^(csv|xlsx)$")):
+    lote = _lote(uid)
+    repo = repositorio()
+    resumos = [r for r in repo.resumos(repo.uuids_do_lote(lote.uuid)) if r["status"] != "dividido"]
+    docs = repo.obter_varios([r["uuid"] for r in sorted(resumos, key=lambda r: r["_ts"])])
+    nome = f"lote-{lote.uuid[:8]}"
     if formato == "xlsx":
         return Response(exportacao.para_xlsx(docs),
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -378,13 +325,14 @@ def exportar_lote(uid: str, formato: str = Query("csv", pattern="^(csv|xlsx)$"),
                     headers={"Content-Disposition": f'attachment; filename="{nome}.csv"'})
 
 
-ACENTOS = ("áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ", "aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC")
-FUSO = "America/Fortaleza"  # Piauí, UTC-3 o ano todo
+def _sem_acento_min(texto: str) -> str:
+    from ..extracao.texto import sem_acento
+
+    return sem_acento(texto).lower()
 
 
-def _sem_acento(expr):
-    """Sem acento e em minúsculas, sem depender da extensão unaccent."""
-    return func.lower(func.translate(expr, *ACENTOS))
+def _inicio_do_dia(d: date) -> float:
+    return datetime.combine(d, dtime.min, tzinfo=FUSO).timestamp()
 
 
 @app.get("/documentos", dependencies=Protegido)
@@ -399,114 +347,102 @@ def listar_documentos(
     campo_data: str = Query("documento", pattern="^(documento|gravacao)$"),
     pagina: int = Query(1, ge=1),
     tamanho: int = Query(25, ge=1, le=200),
-    s: Session = Depends(db),
 ):
     """Filtros combinados com E. `procedimento`/`municipio`: valor exato (opções em /filtros);
     `requerente`: trecho do nome, sem diferenciar maiúsculas nem acentos; `data_de`/`data_ate`: inclusivos,
     sobre a data do documento ou a data de gravação (dia no fuso do Piauí)."""
-    q = select(Documento).outerjoin(Requerimento).where(Documento.status != "dividido")
-    if status:
-        q = q.where(Documento.status.in_(status.split(",")))
+    testes = []
+    ts_de = ts_ate = None
     if requerente and requerente.strip():
-        q = q.where(_sem_acento(Requerimento.requerente_nome).contains(_sem_acento_py(requerente.strip()), autoescape=True))
-    if procedimento:
-        q = q.where(Requerimento.procedimento_texto == procedimento)
-    if municipio:
-        q = q.where(Requerimento.municipio_texto == municipio)
+        trecho = _sem_acento_min(requerente.strip())
+        testes.append(lambda r: trecho in r["_requerente"])
     if data_de or data_ate:
-        dia = (Requerimento.data_documento if campo_data == "documento"
-               else cast(func.timezone(FUSO, Documento.created_at), Date))
-        if data_de:
-            q = q.where(dia >= data_de)
-        if data_ate:
-            q = q.where(dia <= data_ate)
-    if busca:
-        termo = f"%{busca.strip()}%"
-        condicoes = [
-            Documento.nome_original.ilike(termo), Requerimento.requerente_nome.ilike(termo),
-            Requerimento.cpf_cnpj.ilike(termo), Requerimento.municipio_texto.ilike(termo),
-        ]
+        if campo_data == "gravacao":
+            ts_de = _inicio_do_dia(data_de) if data_de else None
+            ts_ate = _inicio_do_dia(data_ate + timedelta(days=1)) - 1e-6 if data_ate else None
+        else:
+            de, ate = (data_de.isoformat() if data_de else None), (data_ate.isoformat() if data_ate else None)
+            testes.append(lambda r: r["data_documento"] is not None
+                          and (de is None or r["data_documento"] >= de) and (ate is None or r["data_documento"] <= ate))
+    if busca and busca.strip():
+        termo = _sem_acento_min(busca.strip())
         # CPF/CNPJ com ou sem máscara (ou só parte dele): compara apenas os dígitos
         digitos = re.sub(r"\D", "", busca)
-        if digitos and re.fullmatch(r"[\d\s./-]+", busca.strip()):
-            condicoes.append(func.regexp_replace(Requerimento.cpf_cnpj, r"\D", "", "g").like(f"%{digitos}%"))
-        q = q.where(or_(*condicoes))
-    total = s.scalar(select(func.count()).select_from(q.subquery()))
-    docs = s.scalars(
-        q.options(selectinload(Documento.requerimento), selectinload(Documento.lote))
-        .order_by(Documento.created_at.desc()).offset((pagina - 1) * tamanho).limit(tamanho)
-    ).all()
-    return {"total": total, "itens": [resumo_documento(d) for d in docs]}
-
-
-def _sem_acento_py(texto: str) -> str:
-    return texto.translate(str.maketrans(*ACENTOS)).lower()
+        por_digitos = bool(digitos) and re.fullmatch(r"[\d\s./-]+", busca.strip()) is not None
+        testes.append(lambda r: any(termo in parte for parte in r["_busca"].split("\x1f"))
+                      or (por_digitos and digitos in r["_cpf"]))
+    total, itens = repositorio().consultar(
+        status=status.split(",") if status else None, procedimento=procedimento or None,
+        municipio=municipio or None, ts_de=ts_de, ts_ate=ts_ate,
+        filtro=(lambda r: all(t(r) for t in testes)) if testes else None, pagina=pagina, tamanho=tamanho,
+    )
+    return {"total": total, "itens": [publico(r) for r in itens]}
 
 
 @app.get("/filtros", dependencies=Protegido)
-def opcoes_de_filtro(s: Session = Depends(db)):
+def opcoes_de_filtro():
     """Procedimentos e municípios que aparecem nos requerimentos gravados, com a quantidade de cada."""
-    def distintos(col):
-        linhas = s.execute(
-            select(col, func.count()).join(Documento, Documento.id == Requerimento.documento_id)
-            .where(Documento.status != "dividido", col.isnot(None), col != "")
-            .group_by(col).order_by(col)
-        ).all()
-        return [{"nome": n, "total": t} for n, t in linhas]
-
-    return {"procedimentos": distintos(Requerimento.procedimento_texto),
-            "municipios": distintos(Requerimento.municipio_texto)}
+    repo = repositorio()
+    return {"procedimentos": repo.opcoes("proc"), "municipios": repo.opcoes("mun")}
 
 
 @app.get("/revisao", dependencies=Protegido)
-def fila_revisao(s: Session = Depends(db)):
-    docs = s.scalars(
-        select(Documento).where(Documento.status == "revisao")
-        .options(selectinload(Documento.requerimento), selectinload(Documento.lote))
-        .order_by(Documento.created_at)
-    ).all()
-    return {"total": len(docs), "itens": [resumo_documento(d) for d in docs]}
+def fila_revisao(pagina: int = Query(1, ge=1), tamanho: int = Query(500, ge=1, le=2000)):
+    """Mais antigos primeiro."""
+    total, itens = repositorio().consultar(status=["revisao"], crescente=True, pagina=pagina, tamanho=tamanho)
+    return {"total": total, "itens": [publico(r) for r in itens]}
 
 
 @app.get("/estatisticas", dependencies=Protegido)
-def estatisticas(s: Session = Depends(db)):
-    por_status = dict(s.execute(select(Documento.status, func.count()).group_by(Documento.status)).all())
-    return {"por_status": por_status, "lotes": s.scalar(select(func.count()).select_from(Lote))}
+def estatisticas():
+    repo = repositorio()
+    return {"por_status": repo.por_status(), "lotes": repo.total_lotes()}
 
 
 @app.get("/documentos/{uid}", dependencies=Protegido)
-def obter_documento(uid: str, s: Session = Depends(db)):
-    return detalhe_documento(s, _doc(s, uid))
+def obter_documento(uid: str):
+    return detalhe_documento(_doc(uid))
+
+
+@app.get("/documentos/{uid}/json", dependencies=Protegido)
+def baixar_json(uid: str):
+    """O arquivo JSON do documento, como está gravado no armazenamento."""
+    d = _doc(uid)
+    return Response(d.model_dump_json(indent=2), media_type="application/json",
+                    headers={"Content-Disposition": disposicao(f"{d.uuid}.json", "attachment")})
 
 
 @app.get("/documentos/{uid}/arquivo", dependencies=Protegido)
-def baixar_original(uid: str, s: Session = Depends(db)):
-    d = _doc(s, uid)
-    return Response(armazenamento().ler(d.storage_key), media_type=d.content_type,
-                    headers={"Content-Disposition": disposicao(d.nome_original)})
+def baixar_original(uid: str):
+    d = _doc(uid)
+    return Response(repositorio().store.ler(d.arquivo.chave), media_type=d.arquivo.content_type,
+                    headers={"Content-Disposition": disposicao(d.arquivo.nome_original)})
 
 
 @app.get("/documentos/{uid}/paginas/{numero}/imagem", dependencies=Protegido)
-def imagem_pagina(uid: str, numero: int, s: Session = Depends(db)):
-    d = _doc(s, uid)
+def imagem_pagina(uid: str, numero: int):
+    d = _doc(uid)
     p = next((p for p in d.paginas_lidas if p.numero == numero), None)
-    if p is None or not p.imagem_key:
+    if p is None or not p.imagem_chave:
         raise HTTPException(404, "página sem imagem")
-    return Response(armazenamento().ler(p.imagem_key), media_type="image/jpeg",
+    return Response(repositorio().store.ler(p.imagem_chave), media_type="image/jpeg",
                     headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.post("/documentos/{uid}/reprocessar", dependencies=Protegido)
-def reprocessar(uid: str, s: Session = Depends(db)):
-    d = _doc(s, uid)
-    if d.status == "validado":
-        raise HTTPException(409, "documento já validado; reprocessar descartaria a validação")
-    if d.status == "processando":
-        raise HTTPException(409, "documento já está em processamento")
-    d.status = "recebido"
-    s.commit()
-    enfileirar([d.id])
-    return resumo_documento(d)
+def reprocessar(uid: str):
+    u = _doc(uid).uuid
+    repo = repositorio()
+    with repo.travar(u):
+        d = repo.obter(u)
+        if d.status == "validado":
+            raise HTTPException(409, "documento já validado; reprocessar descartaria a validação")
+        if d.status == "processando":
+            raise HTTPException(409, "documento já está em processamento")
+        d.status = "recebido"
+        d = repo.salvar(d)
+    enfileirar([d.uuid])
+    return resumo_documento(repo.obter(u) or d)
 
 
 class Correcoes(BaseModel):
@@ -527,9 +463,8 @@ def _editavel(d: Documento) -> None:
 
 
 @app.patch("/documentos/{uid}/correcoes", dependencies=Protegido)
-def corrigir(uid: str, corpo: Correcoes, s: Session = Depends(db), usuario_id: int | None = Depends(usuario)):
-    d = _doc(s, uid)
-    _editavel(d)
+def corrigir(uid: str, corpo: Correcoes, usuario_id: int | None = Depends(usuario)):
+    u = _doc(uid).uuid
     invalidos = set(corpo.campos) - set(P.CAMPOS_SIMPLES)
     if invalidos:
         raise HTTPException(422, f"campos desconhecidos: {', '.join(sorted(invalidos))}")
@@ -538,12 +473,16 @@ def corrigir(uid: str, corpo: Correcoes, s: Session = Depends(db), usuario_id: i
             P.chave_detalhe(k)
         except ValueError as e:
             raise HTTPException(422, str(e))
-    try:
-        P.aplicar_correcoes(s, d, corpo.model_dump(exclude={"versao"}), usuario_id, versao=corpo.versao)
-    except P.ConflitoVersao as e:
-        raise HTTPException(409, str(e))
-    s.expire_all()
-    return detalhe_documento(s, _doc(s, uid))
+    repo = repositorio()
+    with repo.travar(u):
+        d = repo.obter(u)
+        _editavel(d)
+        try:
+            P.aplicar_correcoes(d, corpo.model_dump(exclude={"versao"}), usuario_id, versao=corpo.versao)
+        except P.ConflitoVersao as e:
+            raise HTTPException(409, str(e))
+        d = repo.salvar(d)
+    return detalhe_documento(d)
 
 
 class Validacao(BaseModel):
@@ -553,27 +492,33 @@ class Validacao(BaseModel):
 
 
 @app.post("/documentos/{uid}/validar", dependencies=Protegido)
-def validar_documento(uid: str, corpo: Validacao | None = None, s: Session = Depends(db),
-                      usuario_id: int | None = Depends(usuario)):
-    d = _doc(s, uid)
-    _editavel(d)
+def validar_documento(uid: str, corpo: Validacao | None = None, usuario_id: int | None = Depends(usuario)):
+    u = _doc(uid).uuid
     corpo = corpo or Validacao()
-    try:
-        P.validar_documento(s, d, usuario_id, corpo.forcar, corpo.justificativa, corpo.versao)
-    except (PermissionError, ValueError, P.ConflitoVersao) as e:
-        raise HTTPException(409, str(e))
-    s.expire_all()
-    return detalhe_documento(s, _doc(s, uid))
+    repo = repositorio()
+    with repo.travar(u):
+        d = repo.obter(u)
+        _editavel(d)
+        try:
+            P.validar_documento(d, usuario_id, corpo.forcar, corpo.justificativa, corpo.versao)
+        except (PermissionError, ValueError, P.ConflitoVersao) as e:
+            raise HTTPException(409, str(e))
+        d = repo.salvar(d)
+    return detalhe_documento(d)
+
+
+# nomes que a tela já conhece para as entradas do histórico que não são correção de um campo
+CAMPO_DO_TIPO = {"validacao_com_pendencias": "__validacao_com_pendencias__", "reprocessamento": "__reprocessamento__"}
+
+
+def _revisao(r: Revisao) -> dict[str, Any]:
+    return {"tipo": r.tipo, "campo": CAMPO_DO_TIPO.get(r.tipo, r.campo), "valor_anterior": r.valor_anterior,
+            "valor_novo": r.valor_novo, "usuario_id": r.usuario_id, "created_at": _iso(r.em)}
 
 
 @app.get("/documentos/{uid}/revisoes", dependencies=Protegido)
-def historico(uid: str, s: Session = Depends(db)):
-    d = _doc(s, uid)
-    if d.requerimento is None:
-        return []
-    revs = s.scalars(select(Revisao).where(Revisao.requerimento_id == d.requerimento.id).order_by(Revisao.created_at))
-    return [{"campo": r.campo, "valor_anterior": r.valor_anterior, "valor_novo": r.valor_novo,
-             "usuario_id": r.usuario_id, "created_at": _iso(r.created_at)} for r in revs]
+def historico(uid: str):
+    return [_revisao(r) for r in _doc(uid).historico_de_revisoes]
 
 
 @app.get("/referencias/{tipo}", dependencies=Protegido)
@@ -591,3 +536,14 @@ def referencias(tipo: str):
 @app.exception_handler(FileNotFoundError)
 def _arquivo_ausente(_: Request, exc: FileNotFoundError):
     return JSONResponse({"detail": "arquivo não encontrado no armazenamento"}, status_code=404)
+
+
+@app.exception_handler(TravaOcupada)
+def _trava_ocupada(_: Request, exc: TravaOcupada):
+    return JSONResponse({"detail": str(exc)}, status_code=409)
+
+
+@app.exception_handler(ValidationError)
+def _contrato_violado(_: Request, exc: ValidationError):
+    """Uma gravação que violaria o contrato do JSON (ex.: CPF com letra) é recusada, sem gravar nada."""
+    return JSONResponse({"detail": f"dados fora do contrato do JSON: {exc.errors()[0].get('msg')}"}, status_code=422)

@@ -6,16 +6,17 @@ Depois de registrados, vão para processados/AAAA-MM-DD/; arquivos ilegíveis v�
 from __future__ import annotations
 
 import logging
+import mimetypes
 import shutil
 import time
-from datetime import date, datetime, time as dtime
+import uuid as _uuid
+from datetime import date
 from pathlib import Path
 
-from sqlalchemy import select
-
 from .config import config
-from .modelos import Lote, sessao
-from .pipeline.persistencia import atualizar_lote, registrar_documento
+from .modelos import Lote
+from .pipeline.persistencia import registrar_documento
+from .repositorio import repositorio
 from .worker import enfileirar
 
 log = logging.getLogger("ocr.watcher")
@@ -23,17 +24,15 @@ EXTENSOES = {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp", 
 IGNORAR = {"processados", "erros"}
 
 
-def _lote_do_dia(s, hoje: date) -> Lote:
+def _lote_do_dia(hoje: date) -> str:
+    repo = repositorio()
     nome = f"Pasta monitorada {hoje:%d/%m/%Y}"
-    inicio = datetime.combine(hoje, dtime.min).astimezone()
-    lote = s.scalar(
-        select(Lote).where(Lote.origem == "pasta_monitorada", Lote.nome == nome, Lote.created_at >= inicio)
-    )
-    if lote is None:
-        lote = Lote(nome=nome, origem="pasta_monitorada", status="processando")
-        s.add(lote)
-        s.flush()
-    return lote
+    with repo.travar("lote_pasta"):
+        u = repo.lote_da_pasta(nome)
+        if u is None:
+            u = str(_uuid.uuid4())
+            repo.salvar_lote(Lote(uuid=u, nome=nome, origem="pasta_monitorada"))
+    return u
 
 
 def _mover(arq: Path, destino: Path) -> Path:
@@ -47,7 +46,7 @@ def _mover(arq: Path, destino: Path) -> Path:
     return alvo
 
 
-def varrer(pasta: Path, tamanhos: dict[str, int], hoje: date | None = None) -> list[int]:
+def varrer(pasta: Path, tamanhos: dict[str, int], hoje: date | None = None) -> list[str]:
     """Uma varredura. `tamanhos` guarda o tamanho visto na varredura anterior (estado do loop)."""
     hoje = hoje or date.today()
     prontos: list[Path] = []
@@ -67,26 +66,20 @@ def varrer(pasta: Path, tamanhos: dict[str, int], hoje: date | None = None) -> l
     if not prontos:
         return []
 
-    ids: list[int] = []
-    with sessao() as s:
-        lote = _lote_do_dia(s, hoje)
-        for arq in prontos:
-            try:
-                conteudo = arq.read_bytes()
-                import mimetypes
-
-                ct = mimetypes.guess_type(arq.name)[0] or "application/octet-stream"
-                reg = registrar_documento(s, conteudo, arq.name, ct, lote=lote)
-                s.commit()
-                if not reg.duplicado:
-                    ids.append(reg.documento.id)
-                _mover(arq, pasta / "processados" / f"{hoje:%Y-%m-%d}")
-            except Exception:  # noqa: BLE001
-                log.exception("falha ao registrar %s", arq)
-                s.rollback()
-                _mover(arq, pasta / "erros")
-            tamanhos.pop(str(arq), None)
-        atualizar_lote(s, lote.id)
+    ids: list[str] = []
+    lote = _lote_do_dia(hoje)
+    for arq in prontos:
+        try:
+            conteudo = arq.read_bytes()
+            ct = mimetypes.guess_type(arq.name)[0] or "application/octet-stream"
+            reg = registrar_documento(conteudo, arq.name, ct, lote_uuid=lote)
+            if not reg.duplicado:
+                ids.append(reg.documento.uuid)
+            _mover(arq, pasta / "processados" / f"{hoje:%Y-%m-%d}")
+        except Exception:  # noqa: BLE001
+            log.exception("falha ao registrar %s", arq)
+            _mover(arq, pasta / "erros")
+        tamanhos.pop(str(arq), None)
     enfileirar(ids)
     return ids
 

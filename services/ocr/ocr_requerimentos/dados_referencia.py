@@ -2,8 +2,9 @@
 (https://aguas.semarh.pi.gov.br/requerimentos/criar), copiadas em 01/10/2026.
 
 O PDF imprime exatamente estes textos, então a validação compara o que foi lido com estas listas.
-Ficam em `ocr.dominio` (migrations 0002/0003); os sinônimos cobrem grafias antigas e leituras comuns.
-Se o formulário mudar, atualize aqui e crie uma migration que reaplique `semear_dominios`."""
+Os sinônimos cobrem grafias antigas e leituras comuns. O id de cada opção é a posição na lista
+(extracao/referencias.py): se o formulário mudar, acrescente opções novas no fim de cada lista para não
+mudar os ids das existentes, e suba VERSAO_PIPELINE."""
 
 SISTEMAS_IRRIGACAO: list[tuple[str, list[str]]] = [
     ('Aspersão por canhão hidráulico', ['canhao hidraulico', 'aspersao canhao']),

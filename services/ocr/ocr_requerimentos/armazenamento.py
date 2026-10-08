@@ -1,6 +1,7 @@
-"""Armazenamento de arquivos originais e imagens de página: disco local ou S3/MinIO."""
+"""Armazenamento de arquivos originais, imagens de página e dos JSONs de dados: disco local ou S3/MinIO."""
 from __future__ import annotations
 
+from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -13,6 +14,7 @@ class Armazenamento(Protocol):
     def ler(self, chave: str) -> bytes: ...
     def existe(self, chave: str) -> bool: ...
     def remover(self, chave: str) -> None: ...
+    def listar(self, prefixo: str) -> Iterator[str]: ...
 
 
 class ArmazenamentoLocal:
@@ -42,6 +44,14 @@ class ArmazenamentoLocal:
     def remover(self, chave: str) -> None:
         self._caminho(chave).unlink(missing_ok=True)
 
+    def listar(self, prefixo: str) -> Iterator[str]:
+        base = self._caminho(prefixo) if prefixo else self.raiz
+        if not base.is_dir():
+            return
+        for p in sorted(base.rglob("*")):
+            if p.is_file() and not p.name.endswith(".tmp"):
+                yield p.relative_to(self.raiz).as_posix()
+
 
 class ArmazenamentoS3:
     def __init__(self):
@@ -65,7 +75,10 @@ class ArmazenamentoS3:
         self.cliente.put_object(Bucket=self.bucket, Key=chave, Body=conteudo, ContentType=content_type)
 
     def ler(self, chave: str) -> bytes:
-        return self.cliente.get_object(Bucket=self.bucket, Key=chave)["Body"].read()
+        try:
+            return self.cliente.get_object(Bucket=self.bucket, Key=chave)["Body"].read()
+        except self.cliente.exceptions.NoSuchKey:
+            raise FileNotFoundError(chave) from None
 
     def existe(self, chave: str) -> bool:
         try:
@@ -76,6 +89,11 @@ class ArmazenamentoS3:
 
     def remover(self, chave: str) -> None:
         self.cliente.delete_object(Bucket=self.bucket, Key=chave)
+
+    def listar(self, prefixo: str) -> Iterator[str]:
+        for pagina in self.cliente.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefixo):
+            for obj in pagina.get("Contents", []):
+                yield obj["Key"]
 
 
 @lru_cache

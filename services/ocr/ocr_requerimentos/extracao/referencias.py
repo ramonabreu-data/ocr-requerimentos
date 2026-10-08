@@ -1,17 +1,36 @@
 """Fontes de referência usadas na validação.
 
-`SigaReferencias` lê as tabelas do SIGA (somente leitura) e o dicionário `ocr.dominio`.
+`SigaReferencias` lê as tabelas do SIGA (somente leitura). As listas do formulário que não existem no
+SIGA (sistemas de irrigação, culturas, espécies...) vêm de `dados_referencia.py`, nas duas fontes.
 `ReferenciasEstaticas` serve para testes e para rodar sem banco."""
 from __future__ import annotations
 
 import threading
 import time
 from dataclasses import dataclass, field
+from functools import lru_cache
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from .texto import Ref
+
+
+@lru_cache
+def listas_formulario() -> dict[str, list[Ref]]:
+    """Listas do formulário por tipo. O id é a posição na lista (1, 2, ...): o texto é a referência estável."""
+    from ..dados_referencia import DOMINIOS
+
+    return {tipo: [Ref(i, nome, list(sin)) for i, (nome, sin) in enumerate(itens, start=1)]
+            for tipo, itens in DOMINIOS.items()}
+
+
+def referencias_dominio() -> dict[str, Any]:
+    """Argumentos de `ReferenciasEstaticas` com as listas do formulário."""
+    listas = listas_formulario()
+    return {"sistemas_irrigacao": listas["sistema_irrigacao"], "culturas": listas["cultura"],
+            "dominios": {t: v for t, v in listas.items() if t not in ("sistema_irrigacao", "cultura")}}
 
 
 @dataclass
@@ -103,11 +122,7 @@ class SigaReferencias:
         return self.dominio("cultura")
 
     def dominio(self, tipo: str) -> list[Ref]:
-        return self._lista(
-            f"dominio:{tipo}",
-            "SELECT id, valor AS nome, sinonimos FROM ocr.dominio WHERE tipo = :tipo AND ativo ORDER BY id",
-            tipo=tipo,
-        )
+        return listas_formulario().get(tipo, [])
 
     def pessoa_por_documento(self, digitos: str) -> Ref | None:
         if len(digitos) == 11:
