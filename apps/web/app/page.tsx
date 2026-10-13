@@ -20,6 +20,8 @@ export default function Envio() {
   const entrada = useRef<HTMLInputElement>(null);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [nome, setNome] = useState("");
+  // true: os arquivos já foram conferidos; cada requerimento é validado e armazenado assim que for lido
+  const [jaConferidos, setJaConferidos] = useState(false);
   const [arrastando, setArrastando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -50,10 +52,10 @@ export default function Envio() {
     setParcial(null);
     try {
       if (umSoDocumento) {
-        const d = await api.enviarDocumento(arquivos[0]);
+        const d = await api.enviarDocumento(arquivos[0], jaConferidos);
         router.push(`/documentos/${d.uuid}`);
       } else {
-        const l = await api.criarLote(arquivos, nome.trim() || undefined);
+        const l = await api.criarLote(arquivos, nome.trim() || undefined, jaConferidos);
         if (l.duplicados.length || l.formato_nao_suportado.length) {
           // alguns arquivos ficaram de fora: mostra quais antes de ir para o lote
           setParcial(l);
@@ -164,6 +166,40 @@ export default function Envio() {
               <p className="dica">Opcional. Sem nome, o lote recebe a data e a hora do envio.</p>
             </div>
           )}
+          {arquivos.length > 0 && (
+            <fieldset className="escolha-validacao">
+              <legend>Depois da leitura</legend>
+              <label className="escolha-validacao__opcao">
+                <input
+                  type="radio"
+                  name="validacao"
+                  checked={!jaConferidos}
+                  onChange={() => setJaConferidos(false)}
+                />
+                <span>
+                  <strong>Conferir na tela</strong>
+                  <span className="dica">
+                    Cada requerimento passa pela conferência, ao lado da folha, antes de ser validado.
+                  </span>
+                </span>
+              </label>
+              <label className="escolha-validacao__opcao">
+                <input
+                  type="radio"
+                  name="validacao"
+                  checked={jaConferidos}
+                  onChange={() => setJaConferidos(true)}
+                />
+                <span>
+                  <strong>Já estão conferidos: só armazenar</strong>
+                  <span className="dica">
+                    Os dados lidos são validados e armazenados direto, sem conferência. Pontos que a leitura apontar
+                    ficam registrados no histórico de cada requerimento.
+                  </span>
+                </span>
+              </label>
+            </fieldset>
+          )}
           {erro && (
             <div className="aviso aviso--erro" role="alert" style={{ marginTop: "1rem" }}>
               {erro}
@@ -177,7 +213,10 @@ export default function Envio() {
               </p>
               {parcial.duplicados.length > 0 && (
                 <>
-                  <p style={{ marginTop: "0.5rem" }}>Já tinham sido enviados antes e não entraram no lote:</p>
+                  <p style={{ marginTop: "0.5rem" }}>
+                    Já tinham sido enviados antes e não foram lidos de novo
+                    {jaConferidos ? " (mantêm a situação que já tinham)" : ""}:
+                  </p>
                   <ul>
                     {parcial.duplicados.map((d) => (
                       <li key={d.documento_uuid + d.arquivo}>
@@ -197,7 +236,15 @@ export default function Envio() {
           )}
           <div className="acoes" style={{ marginTop: "1.25rem" }}>
             <button className="botao" disabled={!arquivos.length || enviando} onClick={enviar}>
-              {enviando ? "Enviando…" : umSoDocumento ? "Enviar documento" : "Criar lote"}
+              {enviando
+                ? "Enviando…"
+                : umSoDocumento
+                  ? jaConferidos
+                    ? "Enviar e validar"
+                    : "Enviar documento"
+                  : jaConferidos
+                    ? "Criar lote e validar"
+                    : "Criar lote"}
             </button>
             {arquivos.length > 0 && !enviando && (
               <button className="botao botao--secundario" onClick={() => setArquivos([])}>

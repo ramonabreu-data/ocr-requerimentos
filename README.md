@@ -48,6 +48,14 @@ Situações do documento: `recebido` (na fila), `processando`, `extraido` (pront
 Validar com pendências exige justificativa, que fica no histórico. Enquanto o documento está sendo
 lido, correção e validação ficam bloqueadas.
 
+**Enviar como já conferido.** No envio, depois de escolher os arquivos, dá para optar entre *conferir na
+tela* (o padrão) e *já estão conferidos: só armazenar*. Na segunda opção, cada requerimento novo é validado
+sozinho assim que a leitura termina, em nome de quem enviou, mesmo com pendências: elas ficam no histórico
+com a justificativa automática, e a validação sai com `validacao.modo = "envio"` (no JSON interno e no JSON
+do SIGA). Vale também para as partes de um PDF dividido. Arquivos já enviados antes mantêm a situação que
+tinham, e um arquivo que dê erro de leitura é validado quando for lido de novo. Depois de validado, o
+documento segue as regras de sempre: uma correção desfaz a validação e ele volta para a conferência.
+
 Ler de novo (`reprocessar`) não perde a revisão: depois da nova leitura, as correções manuais são
 reaplicadas. Listas corrigidas (finalidades, irrigação, itens de uma finalidade) voltam inteiras como
 o revisor deixou.
@@ -281,8 +289,8 @@ de propósito, para passar pelas regras do próprio Django.
 
 | Método e rota | Faz |
 |---|---|
-| `POST /documentos` | envia um arquivo (201; 200 com `duplicado: true` se o mesmo arquivo já existe) |
-| `POST /lotes` | envia vários arquivos e/ou ZIPs; informa duplicados (que passam a fazer parte do lote, sem nova leitura) e formatos não suportados |
+| `POST /documentos` | envia um arquivo (201; 200 com `duplicado: true` se o mesmo arquivo já existe); `validar_ao_ler=true` valida ao fim da leitura (já conferido) |
+| `POST /lotes` | envia vários arquivos e/ou ZIPs; informa duplicados (que passam a fazer parte do lote, sem nova leitura) e formatos não suportados; `validar_ao_ler` como no envio avulso |
 | `GET /lotes`, `GET /lotes/{uuid}` | lista e detalhe com documentos e contadores |
 | `POST /lotes/{uuid}/reprocessar-erros` | devolve à fila só os que deram erro |
 | `GET /lotes/{uuid}/exportar?formato=csv\|xlsx\|json` | planilha do lote (CSV com `;` e BOM para Excel) ou os JSONs de todos os documentos, como estão gravados |

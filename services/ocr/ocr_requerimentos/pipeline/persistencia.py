@@ -102,10 +102,12 @@ def registrar_documento(
     usuario_id: int | None = None,
     pai_uuid: str | None = None,
     pagina_inicial: int | None = None,
+    validar_ao_ler: bool = False,
     repo: Repositorio | None = None,
 ) -> ResultadoRegistro:
     """Grava o arquivo no armazenamento e cria o documento. Arquivo repetido (mesmo SHA-256) não é
-    duplicado: devolve o documento existente, que passa a fazer parte também de `lote_uuid`."""
+    duplicado: devolve o documento existente, que passa a fazer parte também de `lote_uuid` sem mudar de
+    situação (`validar_ao_ler` só vale para documentos novos)."""
     repo = repo or repositorio()
     h = sha256(conteudo)
     with repo.travar(f"sha256:{h}"):  # dois envios simultâneos do mesmo arquivo viram um documento só
@@ -126,6 +128,7 @@ def registrar_documento(
             lote_origem_uuid=lote_uuid,
             lotes=[VinculoLote(lote_uuid=lote_uuid, nome_arquivo=nome)] if lote_uuid else [],
             documento_pai_uuid=pai_uuid, pagina_inicial=pagina_inicial, criado_por_id=usuario_id,
+            validar_ao_ler=validar_ao_ler,
         )
         with repo.travar(u):
             doc = repo.salvar(doc)
@@ -346,6 +349,7 @@ def processar_documento(documento_uuid: str, repo: Repositorio | None = None) ->
                 _gravar_segmento(doc, res.segmentos[0], res, repo)
                 if anteriores:
                     _reaplicar_correcoes(doc, anteriores)
+                validar_no_envio(doc)
             else:
                 _dividir(doc, conteudo, res, repo, inicio)
             doc.leitura.duracao_ms = int((time.monotonic() - inicio) * 1000)
@@ -371,7 +375,7 @@ def _dividir(doc: Documento, conteudo: bytes, res: ResultadoArquivo, repo: Repos
         nome = f"{base} - parte {i} (pág. {numeros[0]}{'-' + str(numeros[-1]) if len(numeros) > 1 else ''}).pdf"
         reg = registrar_documento(
             sub, nome, ct, lote_uuid=doc.lote_origem_uuid, usuario_id=doc.criado_por_id, pai_uuid=doc.uuid,
-            pagina_inicial=numeros[0], repo=repo,
+            pagina_inicial=numeros[0], validar_ao_ler=doc.validar_ao_ler, repo=repo,
         )
         for lote in doc.lote_uuids():  # as partes acompanham o original em todos os lotes
             vincular_lote(lote, reg.documento.uuid, nome, repo=repo)
@@ -384,6 +388,7 @@ def _dividir(doc: Documento, conteudo: bytes, res: ResultadoArquivo, repo: Repos
             filho.status = "processando"
             filho.leitura.tentativas = 1
             _gravar_segmento(filho, seg, res, repo)
+            validar_no_envio(filho)
             filho.leitura.duracao_ms = int((time.monotonic() - inicio) * 1000)
             repo.salvar(filho)
 
@@ -559,7 +564,8 @@ def aplicar_correcoes(
 
 
 def validar_documento(doc: Documento, usuario_id: int | None, forcar: bool = False,
-                      justificativa: str | None = None, versao: int | None = None) -> Requerimento:
+                      justificativa: str | None = None, versao: int | None = None,
+                      modo: str = "conferencia") -> Requerimento:
     """Marca como validado (em memória; quem chama segura a trava e salva)."""
     req = doc.requerimento
     if req is None:
@@ -574,11 +580,25 @@ def validar_documento(doc: Documento, usuario_id: int | None, forcar: bool = Fal
             tipo="validacao_com_pendencias", valor_anterior="; ".join(req.pendencias), valor_novo=justificativa,
             usuario_id=usuario_id,
         ))
-    req.validacao = Validacao(situacao="validado", validado_por_id=usuario_id, validado_em=agora())
+    req.validacao = Validacao(situacao="validado", validado_por_id=usuario_id, validado_em=agora(), modo=modo)
     req.versao += 1
     req.atualizado_em = agora()
     doc.status = "validado"
     return req
+
+
+JUSTIFICATIVA_ENVIO = "Enviado como já conferido: validado automaticamente ao fim da leitura."
+
+
+def validar_no_envio(doc: Documento) -> bool:
+    """Documento enviado como já conferido (`validar_ao_ler`): valida assim que a leitura termina, sem passar
+    pela conferência, em nome de quem enviou. Pendências da leitura não impedem: ficam no histórico com a
+    justificativa automática. Em memória, como `validar_documento`; devolve se validou."""
+    if not doc.validar_ao_ler or doc.requerimento is None or doc.status not in ("extraido", "revisao"):
+        return False
+    validar_documento(doc, doc.criado_por_id, forcar=True, justificativa=JUSTIFICATIVA_ENVIO, modo="envio")
+    doc.validar_ao_ler = False
+    return True
 
 
 def chave_detalhe(texto: str) -> tuple[str, str, int | None]:

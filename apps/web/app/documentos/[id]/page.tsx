@@ -256,6 +256,7 @@ export default function Conferencia() {
         {cabecalho}
         <div className="bloco carregando" role="status">
           {doc.status === "recebido" ? "Na fila de leitura. Esta página atualiza sozinha." : "Lendo o documento. Leva alguns segundos por página."}
+          {doc.validar_ao_ler && " Foi enviado como já conferido: será validado assim que a leitura terminar."}
         </div>
       </div>
     );
@@ -266,6 +267,7 @@ export default function Conferencia() {
         {cabecalho}
         <div className="aviso aviso--erro" role="alert">
           <strong>Não foi possível ler este arquivo.</strong> {doc.erro}
+          {doc.validar_ao_ler && " Como foi enviado como já conferido, será validado quando for lido."}
           <p style={{ marginTop: "0.4rem" }}>Confira se o arquivo abre normalmente e use “Ler de novo”, ou envie uma digitalização melhor.</p>
         </div>
       </div>
@@ -276,7 +278,8 @@ export default function Conferencia() {
       <div className="pagina">
         {cabecalho}
         <div className="aviso" style={{ marginBottom: "1.25rem" }}>
-          Este arquivo tinha {doc.filhos.length} requerimentos e foi separado em partes. Confira cada uma.
+          Este arquivo tinha {doc.filhos.length} requerimentos e foi separado em partes.{" "}
+          {doc.validar_ao_ler ? "Como foi enviado como já conferido, cada parte é validada ao fim da leitura." : "Confira cada uma."}
         </div>
         <TabelaDocumentos docs={doc.filhos} vazio="Nenhuma parte gerada." />
       </div>
@@ -362,7 +365,10 @@ export default function Conferencia() {
         <div className="formulario">
           {validado ? (
             <div className="aviso aviso--ok" role="status">
-              Validado em {dataHora(req.validado_em)}. Para alterar algum campo, corrija e salve: o documento volta para conferência.
+              {req.validacao_modo === "envio"
+                ? `Validado no envio, em ${dataHora(req.validado_em)}: foi enviado como já conferido e não passou pela conferência.`
+                : `Validado em ${dataHora(req.validado_em)}.`}{" "}
+              Para alterar algum campo, corrija e salve: o documento volta para conferência.
             </div>
           ) : req.pendencias.length ? (
             <div className="aviso" role="status">

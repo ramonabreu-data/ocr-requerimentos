@@ -66,6 +66,8 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-52 | Correção da tabela de irrigação (trocar cultura, remover linha) | `PATCH /correcoes` | itens regravados e marcados como corrigidos manualmente |
 | CT-53 | Imagem da página | `GET /paginas/1/imagem` | JPEG da página corrigida |
 | CT-54 | Reprocessar documento validado | `POST /reprocessar` | 409 |
+| CT-55 | PDF real (com pendência) enviado como já conferido | `POST /documentos` com `validar_ao_ler` | validado ao fim da leitura em nome de quem enviou, `modo` `envio` no detalhe e no JSON do SIGA, justificativa automática no histórico; sem a opção, continua indo para a conferência |
+| CT-56 | Lote já conferido com PDF de 2 requerimentos e um arquivo já enviado | `POST /lotes` com `validar_ao_ler` | as 2 partes validadas; o duplicado mantém a situação que tinha |
 | CT-90 | Documento com latitude e irrigação corrigidas | `POST /reprocessar` | correções reaplicadas sobre a nova leitura; auditoria só registra `__reprocessamento__` |
 | CT-91 | Documento sem correções | `POST /reprocessar` | nenhuma entrada no histórico |
 | CT-92 | Mesmo arquivo em dois lotes | `POST /lotes` duas vezes | os dois lotes contam e exportam o documento; validar atualiza os dois |
@@ -91,6 +93,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-108 | Redis perdido | `reconstruir_indice` | índice refeito do bucket, idêntico ao anterior |
 | CT-109 | Carga sintética (450 documentos, 3 lotes) | `carga_sintetica` | totais e contadores coerentes |
 | CT-110 | Validados e pendentes com correções | `acuracia` | só os validados contam; campos incluídos na revisão contam como não lidos; faixas de confiança corretas |
+| CT-116 | Documento lido, enviado como já conferido, com pendência | `validar_no_envio` | validado com `modo` `envio`, em nome de quem enviou, com a justificativa automática; a opção é consumida; sem a opção ou com erro de leitura, nada muda |
 
 ## 3c. Publicação para o SIGA (sem banco: "bucket do SIGA" numa pasta temporária)
 
@@ -121,6 +124,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-75 | Exportar lote em XLSX | arquivo baixa e abre no Excel/LibreOffice com acentos corretos |
 | CT-76 | Tela em celular (≤ 400 px) | layout em coluna única, imagem acima do formulário |
 | CT-77 | Navegação só por teclado | todos os controles alcançáveis e com foco visível |
+| CT-78 | Escolher arquivos e marcar "Já estão conferidos: só armazenar" | o botão vira "Enviar e validar"/"Criar lote e validar"; ao fim da leitura, os documentos aparecem como Validado e a conferência diz "Validado no envio" |
 
 ## Resultado da última execução
 

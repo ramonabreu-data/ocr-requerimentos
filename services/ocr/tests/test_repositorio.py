@@ -240,3 +240,21 @@ def test_ct110_acuracia_sobre_validados():
     assert por["latitude"]["pct_acerto"] == 0 and por["municipio"]["pct_acerto"] == 100
     assert por["localidade"]["nao_lidos"] == 1 and por["municipio"]["conferidos"] == 1  # o pendente não conta
     assert {f["faixa_confianca"]: f["corrigidos"] for f in faixas} == {"50-69": 1, "90-100": 0}
+
+
+def test_ct116_validar_no_envio(repo):
+    d = _doc(status="revisao")
+    d.validar_ao_ler, d.criado_por_id = True, 7
+    d.requerimento.pendencias = ["Latitude: conferir"]
+    assert P.validar_no_envio(d)
+    v = d.requerimento.validacao
+    assert d.status == "validado" and v.situacao == "validado" and v.modo == "envio" and v.validado_por_id == 7
+    assert d.historico_de_revisoes[-1].valor_novo == P.JUSTIFICATIVA_ENVIO
+    assert d.validar_ao_ler is False  # vale uma vez: uma releitura depois de desfeita a validação não valida de novo
+    _salvar(repo, d)
+    assert repo.obter(d.uuid).requerimento.validacao.modo == "envio"
+    # sem a opção, ou sem leitura concluída, nada muda
+    assert not P.validar_no_envio(_doc(status="revisao"))
+    com_erro = _doc(status="erro")
+    com_erro.validar_ao_ler = True
+    assert not P.validar_no_envio(com_erro) and com_erro.validar_ao_ler

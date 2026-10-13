@@ -1088,6 +1088,16 @@
           ],
           "default": null,
           "title": "Validado Em"
+        },
+        "modo": {
+          "default": "conferencia",
+          "description": "conferencia: validado na tela de conferência; envio: enviado como já conferido e validado automaticamente ao fim da leitura (validado_por_id = quem enviou).",
+          "enum": [
+            "conferencia",
+            "envio"
+          ],
+          "title": "Modo",
+          "type": "string"
         }
       },
       "title": "Validacao",
@@ -1257,6 +1267,12 @@
       },
       "title": "Partes",
       "type": "array"
+    },
+    "validar_ao_ler": {
+      "default": false,
+      "description": "Enviado como já conferido: é validado assim que a leitura terminar, sem passar pela conferência. Volta a false depois de validado (uma releitura posterior não valida de novo).",
+      "title": "Validar Ao Ler",
+      "type": "boolean"
     },
     "leitura": {
       "$ref": "#/$defs/Leitura"

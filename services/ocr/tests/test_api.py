@@ -85,6 +85,41 @@ def test_ct44_validar_forcado_com_justificativa(cliente, pdf_exemplo):
     assert hist[-1]["campo"] == "__validacao_com_pendencias__" and hist[-1]["valor_novo"] == "conferido em campo"
 
 
+def test_ct55_enviado_como_ja_conferido(cliente, limpar, pdf_exemplo):
+    r = cliente.post("/documentos", files={"arquivo": ("req.pdf", pdf_exemplo, "application/pdf")},
+                     data={"validar_ao_ler": "true"}, headers={"X-Usuario-Id": "42"})
+    assert r.status_code == 201, r.text
+    d = _detalhe(cliente, r.json()["uuid"])
+    # validado mesmo com a pendência da latitude, em nome de quem enviou, sem passar pela conferência
+    assert d["status"] == "validado" and d["validar_ao_ler"] is False
+    req = d["requerimento"]
+    assert req["validacao_modo"] == "envio" and req["validado_em"] and req["pendencias"]
+    assert _json(limpar, d["uuid"])["requerimento"]["validacao"]["validado_por_id"] == 42
+    hist = cliente.get(f"/documentos/{d['uuid']}/revisoes").json()
+    assert hist[-1]["campo"] == "__validacao_com_pendencias__" and "já conferido" in hist[-1]["valor_novo"]
+    siga = cliente.get(f"/siga/requerimentos/{d['uuid']}.json").json()
+    assert siga["validacao"]["modo"] == "envio" and siga["validacao"]["com_pendencias"]
+    # sem a opção, o fluxo continua o mesmo: vai para a conferência
+    outro = F.pdf_requerimento(F.DadosReq(localidade="Sítio Novo"))
+    d2 = _detalhe(cliente, _enviar(cliente, outro, "outro.pdf").json()["uuid"])
+    assert d2["status"] != "validado" and d2["requerimento"]["validacao_modo"] == "conferencia"
+
+
+def test_ct56_lote_ja_conferido_com_pdf_dividido(cliente, pdf_exemplo):
+    _enviar(cliente, pdf_exemplo)  # já enviado antes, para conferência: não muda de situação
+    malote = F.pdf_requerimento(F.DadosReq(), F.DadosReq(localidade="Sítio Novo"))
+    r = cliente.post("/lotes", files=[("arquivos", ("malote.pdf", malote, "application/pdf")),
+                                      ("arquivos", ("repetido.pdf", pdf_exemplo, "application/pdf"))],
+                     data={"validar_ao_ler": "true"})
+    assert r.status_code == 201, r.text
+    assert r.json()["novos"] == 1 and len(r.json()["duplicados"]) == 1
+    lote = cliente.get(f"/lotes/{r.json()['uuid']}").json()
+    situacoes = {doc["nome_original"]: doc["status"] for doc in lote["documentos"]}
+    assert situacoes.pop("malote.pdf") == "dividido" and situacoes.pop("req.pdf") == "revisao"
+    assert list(situacoes.values()) == ["validado", "validado"]  # as duas partes
+    assert lote["validados"] == 2
+
+
 def test_ct45_ponto_fora_do_municipio(cliente):
     # polígono fictício de Altos no stub vai de -42,75 a -42,25 de longitude
     pdf = F.pdf_requerimento(F.DadosReq(longitude="-42°10'00\""))

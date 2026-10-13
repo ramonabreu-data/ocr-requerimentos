@@ -702,6 +702,15 @@
             }
           ],
           "title": "Justificativa"
+        },
+        "modo": {
+          "description": "conferencia: validado por uma pessoa na tela de conferência; envio: enviado como já conferido e validado automaticamente ao fim da leitura, sem conferência na ferramenta.",
+          "enum": [
+            "conferencia",
+            "envio"
+          ],
+          "title": "Modo",
+          "type": "string"
         }
       },
       "required": [
@@ -709,7 +718,8 @@
         "validado_em",
         "com_pendencias",
         "pendencias",
-        "justificativa"
+        "justificativa",
+        "modo"
       ],
       "title": "ValidacaoSiga",
       "type": "object"

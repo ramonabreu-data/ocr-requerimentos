@@ -53,15 +53,18 @@ export interface CorpoCorrecao {
 }
 
 export const api = {
-  enviarDocumento(arquivo: File) {
+  /** validarAoLer: os arquivos já foram conferidos; cada documento é validado assim que a leitura terminar */
+  enviarDocumento(arquivo: File, validarAoLer = false) {
     const f = new FormData();
     f.append("arquivo", arquivo);
+    f.append("validar_ao_ler", String(validarAoLer));
     return pedir<DocumentoResumo & { duplicado: boolean }>("/documentos", { method: "POST", body: f });
   },
-  criarLote(arquivos: File[], nome?: string) {
+  criarLote(arquivos: File[], nome?: string, validarAoLer = false) {
     const f = new FormData();
     arquivos.forEach((a) => f.append("arquivos", a));
     if (nome) f.append("nome", nome);
+    f.append("validar_ao_ler", String(validarAoLer));
     return pedir<RespostaLote>("/lotes", { method: "POST", body: f });
   },
   lotes: (pagina = 1) => pedir<{ total: number; itens: LoteResumo[] }>(`/lotes?pagina=${pagina}`),

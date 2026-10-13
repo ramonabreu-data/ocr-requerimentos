@@ -79,6 +79,8 @@ export interface Requerimento {
   avisos: string[];
   status_validacao: string;
   validado_em: string | null;
+  /** conferencia: validado na tela; envio: enviado como já conferido e validado ao fim da leitura */
+  validacao_modo: "conferencia" | "envio";
   /** muda a cada gravação; enviada nas correções/validação para detectar edição simultânea */
   versao: number;
   finalidades: FinalidadeLida[];
@@ -130,6 +132,8 @@ export interface DocumentoDetalhe extends DocumentoResumo {
   qr_conteudo: string | null;
   processo_uuid: string | null;
   processo_id: number | null;
+  /** enviado como já conferido e ainda não validado (a validação acontece ao fim da leitura) */
+  validar_ao_ler: boolean;
   paginas_lidas: PaginaLida[];
   requerimento: Requerimento | null;
 }

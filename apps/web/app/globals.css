@@ -987,6 +987,64 @@ body:has(.pagina--larga) :is(.governo__interno, .topo__interno, .nav__interno, .
   margin-top: 0.35rem;
 }
 
+/* envio: conferir na tela ou enviar como já conferido */
+.escolha-validacao {
+  border: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  min-width: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.escolha-validacao legend {
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0;
+  margin-bottom: 0.35rem;
+}
+
+.formulario-envio .escolha-validacao__opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--linha);
+  border-radius: var(--r-pequeno);
+  font-weight: 400;
+  font-size: var(--t0);
+  cursor: pointer;
+  transition: border-color 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.escolha-validacao__opcao:hover {
+  border-color: var(--azul);
+}
+
+.escolha-validacao__opcao:has(input:checked) {
+  border-color: var(--azul);
+  background: var(--azul-claro);
+}
+
+.escolha-validacao__opcao input {
+  margin: 0.2rem 0 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+  accent-color: var(--azul);
+}
+
+.escolha-validacao__opcao input:focus-visible {
+  outline: 3px dashed var(--foco);
+  outline-offset: 3px;
+}
+
+.escolha-validacao__opcao .dica {
+  display: block;
+  margin-top: 0.15rem;
+}
+
 /* ---------------------------------------------------------------- conferência */
 .conferencia {
   display: grid;

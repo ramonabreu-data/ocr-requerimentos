@@ -118,6 +118,7 @@ def detalhe_documento(d: Documento) -> dict[str, Any]:
     out["processo_uuid"] = d.qr_code.processo_uuid if d.qr_code else None
     out["processo_id"] = d.qr_code.processo_id if d.qr_code else None
     out["versao_pipeline"] = d.leitura.versao_pipeline
+    out["validar_ao_ler"] = d.validar_ao_ler
     out["paginas_lidas"] = [
         {"numero": p.numero, "largura": p.largura, "altura": p.altura, "metodo": p.metodo, "motor_ocr": p.motor_ocr,
          "confianca_media": p.confianca_media, "angulo_correcao": p.angulo_correcao, "tem_imagem": bool(p.imagem_chave)}
@@ -139,7 +140,7 @@ def detalhe_documento(d: Documento) -> dict[str, Any]:
         "confianca_geral": r.confianca_geral,
         "pendencias": r.pendencias, "avisos": r.avisos,
         "status_validacao": r.validacao.situacao, "validado_por_id": r.validacao.validado_por_id,
-        "validado_em": _iso(r.validacao.validado_em), "versao": r.versao,
+        "validado_em": _iso(r.validacao.validado_em), "validacao_modo": r.validacao.modo, "versao": r.versao,
         "finalidades": [
             {"texto": f.texto, "tipo_finalidade_id": f.tipo_finalidade_id, "confianca": f.confianca,
              "valido": f.valido, "chave": f.chave, "detalhes": f.detalhes,
@@ -220,13 +221,18 @@ def saude():
 
 
 @app.post("/documentos", status_code=201, dependencies=Protegido)
-async def enviar_documento(arquivo: UploadFile = File(...), usuario_id: int | None = Depends(usuario)):
+async def enviar_documento(
+    arquivo: UploadFile = File(...),
+    validar_ao_ler: bool = Form(default=False),
+    usuario_id: int | None = Depends(usuario),
+):
+    """`validar_ao_ler`: o arquivo já foi conferido; o documento é validado assim que a leitura terminar."""
     dados = await _ler_upload(arquivo)
     nome = arquivo.filename or "documento"
     if nome.lower().endswith(".zip"):
         raise HTTPException(400, "para enviar um ZIP use o envio em lote (/lotes)")
     reg = await run_in_threadpool(P.registrar_documento, dados, nome, _content_type(nome, arquivo.content_type),
-                                  usuario_id=usuario_id)
+                                  usuario_id=usuario_id, validar_ao_ler=validar_ao_ler)
     if not reg.duplicado:
         await run_in_threadpool(enfileirar, [reg.documento.uuid])
     doc = repositorio().obter(reg.documento.uuid) or reg.documento
@@ -238,8 +244,11 @@ async def enviar_documento(arquivo: UploadFile = File(...), usuario_id: int | No
 async def criar_lote(
     arquivos: list[UploadFile] = File(...),
     nome: str | None = Form(default=None),
+    validar_ao_ler: bool = Form(default=False),
     usuario_id: int | None = Depends(usuario),
 ):
+    """`validar_ao_ler`: os arquivos já foram conferidos; cada documento novo é validado assim que a leitura
+    terminar. Duplicados mantêm a situação que já tinham."""
     entradas: list[tuple[str, bytes]] = []
     origem = "upload"
     for f in arquivos:
@@ -252,10 +261,11 @@ async def criar_lote(
             entradas.append((fn, dados))
     if not entradas:
         raise HTTPException(400, "nenhum arquivo encontrado no envio")
-    return await run_in_threadpool(_registrar_lote, entradas, nome, origem, usuario_id)
+    return await run_in_threadpool(_registrar_lote, entradas, nome, origem, usuario_id, validar_ao_ler)
 
 
-def _registrar_lote(entradas: list[tuple[str, bytes]], nome: str | None, origem: str, usuario_id: int | None):
+def _registrar_lote(entradas: list[tuple[str, bytes]], nome: str | None, origem: str, usuario_id: int | None,
+                    validar_ao_ler: bool = False):
     repo = repositorio()
     lote = Lote(uuid=str(_uuid.uuid4()), nome=nome or f"Lote de {datetime.now(FUSO):%d/%m/%Y %H:%M}",
                 origem=origem, criado_por_id=usuario_id)
@@ -264,7 +274,8 @@ def _registrar_lote(entradas: list[tuple[str, bytes]], nome: str | None, origem:
     for fn, dados in entradas:
         if not fn.lower().endswith(EXTENSOES_ACEITAS):
             ignorados.append(fn)  # entra mesmo assim: vira documento com erro, visível no lote
-        reg = P.registrar_documento(dados, fn, _content_type(fn, None), lote_uuid=lote.uuid, usuario_id=usuario_id)
+        reg = P.registrar_documento(dados, fn, _content_type(fn, None), lote_uuid=lote.uuid, usuario_id=usuario_id,
+                                    validar_ao_ler=validar_ao_ler)
         # arquivo já enviado antes não é lido de novo, mas passa a fazer parte deste lote também
         (duplicados if reg.duplicado else novos).append((fn, reg.documento))
     enfileirar([d.uuid for _, d in novos])

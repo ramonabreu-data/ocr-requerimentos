@@ -101,6 +101,10 @@ class Validacao(Modelo):
     situacao: Literal["pendente", "validado"] = "pendente"
     validado_por_id: int | None = None
     validado_em: datetime | None = None
+    modo: Literal["conferencia", "envio"] = Field(
+        "conferencia", description="conferencia: validado na tela de conferência; envio: enviado como já conferido "
+                                   "e validado automaticamente ao fim da leitura (validado_por_id = quem enviou).",
+    )
 
     @model_validator(mode="after")
     def _validado_tem_data(self) -> "Validacao":
@@ -233,6 +237,10 @@ class Documento(Modelo):
     documento_pai_uuid: str | None = Field(None, description="Arquivo com vários requerimentos de onde esta parte saiu.")
     pagina_inicial: int | None = Field(None, description="Página do arquivo original onde esta parte começa.")
     partes: list[str] = Field(default_factory=list, description="Partes criadas quando o arquivo foi dividido.")
+    validar_ao_ler: bool = Field(
+        False, description="Enviado como já conferido: é validado assim que a leitura terminar, sem passar pela "
+                           "conferência. Volta a false depois de validado (uma releitura posterior não valida de novo).",
+    )
     leitura: Leitura = Field(default_factory=Leitura)
     assinatura: Assinatura = Field(default_factory=Assinatura)
     qr_code: QrCode | None = None

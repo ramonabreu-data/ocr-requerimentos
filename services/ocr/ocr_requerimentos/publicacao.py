@@ -101,6 +101,9 @@ class ValidacaoSiga(Modelo):
     com_pendencias: bool = Field(description="Validado mesmo com pendências, com justificativa.")
     pendencias: list[str] = Field(description="Pendências que existiam no momento da validação (se houve).")
     justificativa: str | None
+    modo: Literal["conferencia", "envio"] = Field(
+        description="conferencia: validado por uma pessoa na tela de conferência; envio: enviado como já conferido "
+                    "e validado automaticamente ao fim da leitura, sem conferência na ferramenta.")
 
 
 class Origem(Modelo):
@@ -174,6 +177,7 @@ def para_siga(d: Documento) -> RequerimentoSiga:
         validacao=ValidacaoSiga(
             validado_por_id=r.validacao.validado_por_id, validado_em=r.validacao.validado_em,
             com_pendencias=justificativa is not None, pendencias=pendencias or [], justificativa=justificativa,
+            modo=r.validacao.modo,
         ),
         confianca_geral=r.confianca_geral, avisos=r.avisos,
         campos=[CampoRastreado(campo=c.campo, indice=c.indice, valor_final=c.valor_atual,
