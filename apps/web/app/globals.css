@@ -1790,6 +1790,27 @@ details[open] > summary .json-id {
   background: transparent;
 }
 
+/* número de registro (REQ-2026-000123): acima do nome do arquivo e na 1ª coluna das listas */
+.numero-registro {
+  font-family: var(--fonte-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--azul);
+  margin: 0.35rem 0 0.15rem;
+}
+
+.cabecalho p.numero-registro {
+  color: var(--azul);
+}
+
+.tabela td.numero {
+  font-family: var(--fonte-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
 .metadados {
   display: flex;
   flex-wrap: wrap;

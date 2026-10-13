@@ -4,7 +4,8 @@
   acuracia [--saida PASTA]  análises de acurácia do OCR sobre os requerimentos validados (CSV)
   json-schema PASTA         grava o JSON Schema dos arquivos (documento, páginas, lote, padrão do SIGA)
   publicar-siga             reenvia ao bucket do SIGA todos os validados e regera o consolidado
-  carga-sintetica N         grava N documentos sintéticos e mede as consultas da API (só em ambiente de teste)"""
+  carga-sintetica N         grava N documentos sintéticos e mede as consultas da API (só em ambiente de teste)
+  numerar                   dá número de registro (REQ-AAAA-NNNNNN) aos documentos gravados antes da numeração"""
 from __future__ import annotations
 
 import argparse
@@ -18,7 +19,7 @@ import uuid as _uuid
 from collections import defaultdict
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from .modelos import (
@@ -213,6 +214,36 @@ def _validados(repo: Repositorio, bloco: int = 1000):
         pagina += 1
 
 
+# ----------------------------------------------------------------- numeração de documentos antigos
+def numerar(repo: Repositorio) -> dict[str, int]:
+    """Dá número de registro aos documentos gravados antes da numeração, do mais antigo ao mais novo, pelo
+    ano em que chegaram. As partes de um arquivo dividido levam o número dele com -1, -2... (na ordem das
+    partes). Os que já têm número ficam como estão; pode rodar de novo sem efeito."""
+    from .pipeline.persistencia import FUSO
+
+    # só o necessário de cada documento sem número (memória pequena mesmo com muitos documentos)
+    sem: list[tuple[datetime, str, str | None]] = sorted(
+        (d.criado_em, d.uuid, d.documento_pai_uuid) for d in repo.iterar_documentos() if not d.numero
+    )
+    numerados = {"documentos": 0, "partes": 0}
+    for partes in (False, True):  # os arquivos primeiro: as partes dependem do número deles
+        for criado_em, u, pai in sem:
+            if (pai is not None) != partes:
+                continue
+            with repo.travar(u):
+                d = repo.obter(u)
+                if d is None or d.numero:
+                    continue
+                origem = repo.obter(pai) if pai else None
+                if origem is not None and origem.numero and u in origem.partes:
+                    d.numero = f"{origem.numero}-{origem.partes.index(u) + 1}"
+                else:
+                    d.numero = repo.proximo_numero(criado_em.astimezone(FUSO).year)
+                repo.salvar(d)
+            numerados["partes" if partes else "documentos"] += 1
+    return numerados
+
+
 # ----------------------------------------------------------------- linha de comando
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m ocr_requerimentos.ferramentas", description=__doc__,
@@ -224,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--saida", type=Path, help="pasta para acuracia_campo.csv e calibracao_confianca.csv")
     j = sub.add_parser("json-schema")
     j.add_argument("pasta", type=Path)
+    sub.add_parser("numerar")
     c = sub.add_parser("carga-sintetica")
     c.add_argument("n", type=int)
     c.add_argument("--paralelismo", type=int, default=16)
@@ -258,6 +290,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(_csv(campos, COLUNAS_CAMPO))
             print(_csv(faixas, COLUNAS_FAIXA))
+    elif args.comando == "numerar":
+        print(json.dumps(numerar(repositorio()), ensure_ascii=False))
     elif args.comando == "json-schema":
         for p in gravar_json_schema(args.pasta):
             print(p)

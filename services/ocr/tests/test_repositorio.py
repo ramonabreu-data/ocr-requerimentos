@@ -3,12 +3,12 @@ Rodam sem banco e sem OCR (armazenamento em pasta temporária, Redis em memória
 import json
 import threading
 import uuid as _uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 from pydantic import ValidationError
 
-from ocr_requerimentos.ferramentas import acuracia, carga_sintetica, gravar_json_schema
+from ocr_requerimentos.ferramentas import acuracia, carga_sintetica, gravar_json_schema, numerar
 from ocr_requerimentos.modelos import (
     ArquivoOriginal,
     Campo,
@@ -258,3 +258,38 @@ def test_ct116_validar_no_envio(repo):
     com_erro = _doc(status="erro")
     com_erro.validar_ao_ler = True
     assert not P.validar_no_envio(com_erro) and com_erro.validar_ao_ler
+
+
+def test_ct117_numero_de_registro(repo):
+    ano = datetime.now(P.FUSO).year
+    registrar = lambda conteudo, **kw: P.registrar_documento(conteudo, "a.pdf", "application/pdf", repo=repo,  # noqa: E731
+                                                             **kw).documento
+    a, b = registrar(b"%PDF a"), registrar(b"%PDF b")
+    assert (a.numero, b.numero) == (f"REQ-{ano}-000001", f"REQ-{ano}-000002")
+    assert registrar(b"%PDF a").numero == a.numero  # mesmo arquivo: mesmo documento, mesmo número
+    parte = registrar(b"%PDF parte", pai_uuid=a.uuid, numero=f"{a.numero}-1")
+    assert parte.numero == f"REQ-{ano}-000001-1"
+    assert repo.uuid_por_numero(b.numero) == b.uuid and repo.resumo(b.uuid)["numero"] == b.numero
+    _, achados = repo.consultar(filtro=lambda r: "000002" in r["_busca"])
+    assert [r["uuid"] for r in achados] == [b.uuid]
+    # Redis perdido: o índice refeito do bucket continua a sequência, sem repetir número
+    repo.r.flushall()
+    repo.reconstruir_indice()
+    assert registrar(b"%PDF c").numero == f"REQ-{ano}-000003"
+    with pytest.raises(ValidationError):
+        Documento.model_validate({**b.model_dump(), "numero": "123"})
+
+
+def test_ct118_numerar_documentos_antigos(repo):
+    velho = _doc()
+    velho.criado_em = datetime(2025, 12, 31, 23, 30, tzinfo=timezone.utc)  # 20h30 de 31/12 no Piauí: ano 2025
+    pai, filho = _doc(status="dividido"), _doc()
+    pai.partes, filho.documento_pai_uuid = [filho.uuid], pai.uuid
+    for d in (velho, pai, filho):
+        _salvar(repo, d)
+    assert numerar(repo) == {"documentos": 2, "partes": 1}
+    assert repo.obter(velho.uuid).numero == "REQ-2025-000001"
+    numero_pai = repo.obter(pai.uuid).numero
+    assert numero_pai == f"REQ-{pai.criado_em.astimezone(P.FUSO).year}-000001"
+    assert repo.obter(filho.uuid).numero == f"{numero_pai}-1"
+    assert numerar(repo) == {"documentos": 0, "partes": 0}  # rodar de novo não muda nada

@@ -94,6 +94,8 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-109 | Carga sintética (450 documentos, 3 lotes) | `carga_sintetica` | totais e contadores coerentes |
 | CT-110 | Validados e pendentes com correções | `acuracia` | só os validados contam; campos incluídos na revisão contam como não lidos; faixas de confiança corretas |
 | CT-116 | Documento lido, enviado como já conferido, com pendência | `validar_no_envio` | validado com `modo` `envio`, em nome de quem enviou, com a justificativa automática; a opção é consumida; sem a opção ou com erro de leitura, nada muda |
+| CT-117 | Três arquivos registrados, um repetido, uma parte e o Redis perdido | `registrar_documento` / `reconstruir_indice` | `REQ-AAAA-000001`, `-000002`; o repetido mantém o número; a parte recebe `-1`; achado pela busca; depois de refazer o índice a sequência continua em `-000003`; formato fora do padrão recusado pelo contrato |
+| CT-118 | Documentos gravados antes da numeração (um de 31/12 à noite, um arquivo dividido e sua parte) | `ferramentas numerar` | numerados pela ordem e pelo ano no fuso do Piauí; a parte recebe o número do arquivo com `-1`; rodar de novo não muda nada |
 
 ## 3c. Publicação para o SIGA (sem banco: "bucket do SIGA" numa pasta temporária)
 

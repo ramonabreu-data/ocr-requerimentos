@@ -153,7 +153,7 @@ export default function Requerimentos() {
           id="busca"
           className="entrada"
           type="search"
-          placeholder="Buscar por nome, CPF/CNPJ, município ou arquivo"
+          placeholder="Buscar por número, nome, CPF/CNPJ, município ou arquivo"
           value={f.busca}
           onChange={(e) => mudar({ busca: e.target.value })}
         />
@@ -270,6 +270,7 @@ export default function Requerimentos() {
             <table className="tabela">
               <thead>
                 <tr>
+                  <th scope="col">Número</th>
                   <th scope="col">Requerente</th>
                   <th scope="col" className="opcional">Procedimento</th>
                   <th scope="col" className="opcional">Município</th>
@@ -282,6 +283,7 @@ export default function Requerimentos() {
               <tbody>
                 {resultado.itens.map((d) => (
                   <tr key={d.uuid}>
+                    <td className="numero">{d.numero ?? <span className="discreto">—</span>}</td>
                     <td>
                       <Link className="principal" href={`/documentos/${d.uuid}?de=${origem}`}>
                         {d.requerente_nome ?? d.nome_original}

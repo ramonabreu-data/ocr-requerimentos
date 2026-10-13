@@ -1184,6 +1184,20 @@
       "title": "Uuid",
       "type": "string"
     },
+    "numero": {
+      "anyOf": [
+        {
+          "pattern": "^REQ-\\d{4}-\\d{6,}(-\\d+)?$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Número de registro legível e único: REQ-AAAA-NNNNNN (ano do recebimento, no fuso do Piauí, e sequência dentro do ano). As partes de um arquivo com vários requerimentos levam o número dele seguido de -1, -2... Nulo só em arquivos gravados antes da numeração (ferramentas numerar).",
+      "title": "Numero"
+    },
     "status": {
       "default": "recebido",
       "enum": [

@@ -11,6 +11,8 @@ export type BBox = [number, number, number, number];
 
 export interface DocumentoResumo {
   uuid: string;
+  /** número de registro legível: REQ-2026-000123 (parte de arquivo dividido: REQ-2026-000123-2) */
+  numero: string | null;
   nome_original: string;
   status: StatusDocumento;
   erro: string | null;

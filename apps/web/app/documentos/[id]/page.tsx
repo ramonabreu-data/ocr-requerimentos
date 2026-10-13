@@ -239,6 +239,7 @@ export default function Conferencia() {
             Voltar ao lote
           </Link>
         )}
+        {doc.numero && <p className="numero-registro">{doc.numero}</p>}
         <h1 style={{ overflowWrap: "anywhere" }}>{doc.nome_original}</h1>
         <p className="metadados">
           <Status valor={doc.status} />

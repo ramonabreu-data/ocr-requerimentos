@@ -12,6 +12,8 @@ import logging
 import time
 import uuid as _uuid
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from functools import lru_cache
 from typing import Any
 
@@ -51,6 +53,7 @@ from .extracao import ResultadoArquivo, Segmento, imagem_jpeg, palavras_json, pr
 from .leitura import ArquivoInvalido
 
 log = logging.getLogger(__name__)
+FUSO = ZoneInfo("America/Fortaleza")  # o ano do número de registro é o do recebimento no Piauí
 
 
 class ConflitoVersao(Exception):
@@ -103,11 +106,15 @@ def registrar_documento(
     pai_uuid: str | None = None,
     pagina_inicial: int | None = None,
     validar_ao_ler: bool = False,
+    numero: str | None = None,
     repo: Repositorio | None = None,
 ) -> ResultadoRegistro:
     """Grava o arquivo no armazenamento e cria o documento. Arquivo repetido (mesmo SHA-256) não é
     duplicado: devolve o documento existente, que passa a fazer parte também de `lote_uuid` sem mudar de
-    situação (`validar_ao_ler` só vale para documentos novos)."""
+    situação nem de número (`validar_ao_ler` só vale para documentos novos).
+
+    O documento novo recebe o próximo número de registro do ano, ou `numero` (as partes de um arquivo
+    dividido levam o número dele com -1, -2...)."""
     repo = repo or repositorio()
     h = sha256(conteudo)
     with repo.travar(f"sha256:{h}"):  # dois envios simultâneos do mesmo arquivo viram um documento só
@@ -129,6 +136,7 @@ def registrar_documento(
             lotes=[VinculoLote(lote_uuid=lote_uuid, nome_arquivo=nome)] if lote_uuid else [],
             documento_pai_uuid=pai_uuid, pagina_inicial=pagina_inicial, criado_por_id=usuario_id,
             validar_ao_ler=validar_ao_ler,
+            numero=numero or repo.proximo_numero(datetime.now(FUSO).year),
         )
         with repo.travar(u):
             doc = repo.salvar(doc)
@@ -375,7 +383,8 @@ def _dividir(doc: Documento, conteudo: bytes, res: ResultadoArquivo, repo: Repos
         nome = f"{base} - parte {i} (pág. {numeros[0]}{'-' + str(numeros[-1]) if len(numeros) > 1 else ''}).pdf"
         reg = registrar_documento(
             sub, nome, ct, lote_uuid=doc.lote_origem_uuid, usuario_id=doc.criado_por_id, pai_uuid=doc.uuid,
-            pagina_inicial=numeros[0], validar_ao_ler=doc.validar_ao_ler, repo=repo,
+            pagina_inicial=numeros[0], validar_ao_ler=doc.validar_ao_ler,
+            numero=f"{doc.numero}-{i}" if doc.numero else None, repo=repo,
         )
         for lote in doc.lote_uuids():  # as partes acompanham o original em todos os lotes
             vincular_lote(lote, reg.documento.uuid, nome, repo=repo)

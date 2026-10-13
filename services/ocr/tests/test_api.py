@@ -148,6 +148,7 @@ def test_ct47_pdf_com_tres_requerimentos(cliente):
                                                                   "Povoado Boa Esperança"]
     assert filhos[2]["requerimento"]["municipio"] == "Teresina"
     assert all(f["documento_pai_uuid"] == pai["uuid"] for f in filhos)
+    assert [f["numero"] for f in filhos] == [f"{pai['numero']}-{i}" for i in (1, 2, 3)]
     assert cliente.get(f"/documentos/{filhos[1]['uuid']}/arquivo").content.startswith(b"%PDF")
 
 
@@ -201,7 +202,7 @@ def test_ct50_exportacao(cliente, pdf_exemplo):
     assert csv.status_code == 200 and csv.content.startswith("\ufeff".encode())
     texto = csv.content.decode("utf-8-sig")
     linhas = texto.strip().splitlines()
-    assert len(linhas) == 3 and linhas[0].startswith("Documento (uuid);Arquivo;Status")
+    assert len(linhas) == 3 and linhas[0].startswith("Número;Documento (uuid);Arquivo;Status")
     assert "Regularização de Poço Tubular" in texto and "-42,7089944" in texto
     x = cliente.get(f"/lotes/{lote['uuid']}/exportar?formato=xlsx")
     wb = openpyxl.load_workbook(io.BytesIO(x.content))

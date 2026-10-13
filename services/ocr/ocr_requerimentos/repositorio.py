@@ -37,6 +37,8 @@ from .modelos import (
     PaginasDocumento,
     agora,
     atualizar_formato,
+    formatar_numero,
+    ler_numero,
 )
 
 log = logging.getLogger(__name__)
@@ -70,6 +72,7 @@ def resumo_documento(d: Documento) -> dict[str, Any]:
     r = d.requerimento
     return {
         "uuid": d.uuid,
+        "numero": d.numero,
         "nome_original": d.arquivo.nome_original,
         "status": d.status,
         "erro": d.erro,
@@ -103,7 +106,7 @@ def _resumo_indice(d: Documento) -> dict[str, Any]:
     res["_requerente"] = _sem_acento_min(r.requerente_nome if r else None)
     res["_busca"] = SEPARADOR.join(_sem_acento_min(v) for v in (
         d.arquivo.nome_original, r.requerente_nome if r else None, r.cpf_cnpj if r else None,
-        r.municipio if r else None,
+        r.municipio if r else None, d.numero,
     ))
     res["_cpf"] = _digitos(r.cpf_cnpj if r else None)
     return res
@@ -216,6 +219,18 @@ class Repositorio:
     def uuid_por_sha256(self, h: str) -> str | None:
         return self.r.hget(self._k("sha256"), h)
 
+    def proximo_numero(self, ano: int) -> str:
+        """Próximo número de registro do ano (REQ-AAAA-NNNNNN). O contador é atômico (INCR) e
+        `reconstruir_indice` o refaz a partir dos números gravados; o mapa número → documento garante que um
+        número já usado não seja dado de novo."""
+        while True:
+            numero = formatar_numero(ano, self.r.incr(self._k("seq", str(ano))))
+            if not self.r.hexists(self._k("numeros"), numero):
+                return numero
+
+    def uuid_por_numero(self, numero: str) -> str | None:
+        return self.r.hget(self._k("numeros"), numero)
+
     # ------------------------------------------------------------- lotes
     def salvar_lote(self, lote: Lote) -> None:
         valido = Lote.model_validate(lote.model_dump())
@@ -279,6 +294,8 @@ class Repositorio:
         pipe.hset(k("resumo"), u, json.dumps(novo, ensure_ascii=False))
         pipe.hset(k("busca"), u, _linha_busca(novo))
         pipe.hset(k("sha256"), doc.arquivo.sha256, u)
+        if doc.numero:
+            pipe.hset(k("numeros"), doc.numero, u)
         if antigo and antigo["status"] != novo["status"]:
             pipe.zrem(k("status", antigo["status"]), u)
         pipe.zadd(k("status", novo["status"]), {u: ts})
@@ -437,13 +454,19 @@ class Repositorio:
                 lotes += 1
         docs = 0
         ultimo: dict[str, datetime] = {}
+        maior: dict[int, int] = {}  # maior sequência usada em cada ano: o contador continua dela
         for doc in self.iterar_documentos(paralelismo):
             self.indexar(doc, atualizar_fim=False)
             for lote in doc.lote_uuids():
                 ultimo[lote] = max(ultimo.get(lote, doc.atualizado_em), doc.atualizado_em)
+            if doc.numero:
+                ano, seq, _ = ler_numero(doc.numero)
+                maior[ano] = max(maior.get(ano, 0), seq)
             docs += 1
         for lote, momento in ultimo.items():
             self._atualizar_fim_lote(lote, momento)
+        for ano, seq in maior.items():
+            self.r.set(self._k("seq", str(ano)), seq)
         return {"lotes": lotes, "documentos": docs}
 
 

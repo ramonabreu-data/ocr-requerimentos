@@ -23,6 +23,18 @@ SCHEMA_VERSAO = 1
 StatusDocumento = Literal["recebido", "processando", "extraido", "revisao", "validado", "erro", "dividido"]
 STATUS_DOCUMENTO: tuple[str, ...] = StatusDocumento.__args__  # type: ignore[attr-defined]
 Confianca = Annotated[float, Field(ge=0, le=100)]
+# número de registro: REQ-2026-000123; a parte 2 de um arquivo com vários requerimentos: REQ-2026-000123-2
+PADRAO_NUMERO = r"^REQ-\d{4}-\d{6,}(-\d+)?$"
+
+
+def formatar_numero(ano: int, sequencia: int) -> str:
+    return f"REQ-{ano}-{sequencia:06d}"
+
+
+def ler_numero(numero: str) -> tuple[int, int, int | None]:
+    """'REQ-2026-000123-2' -> (2026, 123, 2)."""
+    partes = numero.split("-")
+    return int(partes[1]), int(partes[2]), int(partes[3]) if len(partes) > 3 else None
 
 
 def agora() -> datetime:
@@ -228,6 +240,12 @@ class VinculoLote(Modelo):
 class Documento(Modelo):
     schema_versao: int = SCHEMA_VERSAO
     uuid: str
+    numero: str | None = Field(
+        None, pattern=PADRAO_NUMERO,
+        description="Número de registro legível e único: REQ-AAAA-NNNNNN (ano do recebimento, no fuso do Piauí, e "
+                    "sequência dentro do ano). As partes de um arquivo com vários requerimentos levam o número dele "
+                    "seguido de -1, -2... Nulo só em arquivos gravados antes da numeração (ferramentas numerar).",
+    )
     status: StatusDocumento = "recebido"
     erro: str | None = None
     arquivo: ArquivoOriginal

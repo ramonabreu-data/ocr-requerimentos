@@ -105,7 +105,7 @@ services/ocr        Python: API FastAPI, worker Celery, monitor de pasta, pipeli
     publicacao.py   JSON padrão para o SIGA
     worker.py       tarefas Celery (leitura e publicação)
     watcher.py      monitor da pasta do scanner
-    ferramentas.py  reconstruir índice, relatório de acurácia, JSON Schema, carga sintética
+    ferramentas.py  reconstruir índice, numerar antigos, relatório de acurácia, JSON Schema, carga sintética
   tests/            testes automatizados (ver docs/cenarios-de-teste.md)
 db/dev              stub das tabelas do SIGA para desenvolvimento
 docs                cenários de teste e JSON Schema dos arquivos (docs/contrato-json)
@@ -307,6 +307,24 @@ upload/pasta ──► │ documentos/{uuid}/original.pdf, paginas/{n}.jpg      
                  Banco do SIGA: só leitura (CPF, municípios e polígonos, listas)
 ```
 
+**Identificação.** Cada requerimento tem dois identificadores, gravados nos dois JSONs (o interno e o do
+SIGA) e que nunca mudam (nem ao ler de novo, corrigir ou validar):
+
+| Campo | Exemplo | Para quê |
+|---|---|---|
+| `uuid` | `b77c783e-5e92-4995-b6e0-251205f3d72e` | identificador técnico: nome dos arquivos no bucket, rotas da API, integração |
+| `numero` | `REQ-2026-000123` | número de registro para as pessoas: listas, busca, planilhas, conversa e processo |
+
+O `numero` é `REQ-` + ano do recebimento (no fuso do Piauí) + sequência dentro do ano, com 6 dígitos; a
+sequência recomeça em 1 a cada ano. Ele é dado quando o arquivo é registrado, antes da leitura, então o
+técnico já o vê logo depois do envio. As partes de um PDF com vários requerimentos levam o número do
+arquivo seguido de `-1`, `-2`... (`REQ-2026-000123-2`), para se saber de onde vieram; o arquivo
+original (situação `dividido`) fica com o número sem sufixo. O mesmo arquivo reenviado continua com o
+número que já tinha. O contador fica no Redis (atômico) e é refeito por `reconstruir-indice` a partir dos
+números gravados; um mapa número → documento impede que um número seja dado duas vezes. Documentos
+gravados antes da numeração recebem número com `python -m ocr_requerimentos.ferramentas numerar` (pela
+ordem de chegada; pode rodar de novo sem efeito).
+
 **O JSON de um requerimento** (`dados/documentos/{uuid}.json`) traz o documento (arquivo, SHA-256,
 situação, assinatura, QR code, versão do pipeline e configuração da leitura, lotes), os dados extraídos
 e, para cada campo, o que é cada coisa com nome explícito:
@@ -350,7 +368,8 @@ Regras que a gravação garante (antes eram restrições do banco):
 - O mesmo CPF/CNPJ pode ter vários requerimentos.
 
 **Índice no Redis.** Guarda um resumo de cada documento e conjuntos ordenados por data (geral, por
-situação, lote, procedimento e município), os contadores de cada lote e o mapa SHA-256 → documento. A
+situação, lote, procedimento e município), os contadores de cada lote, o mapa SHA-256 → documento e o
+contador e o mapa dos números de registro. A
 lista, a fila de revisão, os filtros e a paginação saem dele sem abrir os JSONs. É derivado: se o Redis
 se perder, `make reconstruir-indice` refaz tudo lendo o bucket. O Redis do compose grava em disco (AOF)
 e usa `noeviction`, para nunca descartar chaves do índice por falta de memória.
@@ -512,7 +531,7 @@ de propósito, para passar pelas regras do próprio Django.
 | `GET /lotes`, `GET /lotes/{uuid}` | lista e detalhe com documentos e contadores |
 | `POST /lotes/{uuid}/reprocessar-erros` | devolve à fila só os que deram erro |
 | `GET /lotes/{uuid}/exportar?formato=csv\|xlsx\|json` | planilha do lote (CSV com `;` e BOM para Excel) ou os JSONs de todos os documentos, como estão gravados |
-| `GET /documentos?status=&busca=` e `GET /revisao` | listas e fila de revisão; `busca` acha CPF/CNPJ com ou sem máscara |
+| `GET /documentos?status=&busca=` e `GET /revisao` | listas e fila de revisão; `busca` acha número de registro (`REQ-2026-000123` ou parte dele) e CPF/CNPJ com ou sem máscara |
 | `GET /documentos?requerente=&procedimento=&municipio=&data_de=&data_ate=&campo_data=&pagina=&tamanho=` | filtros da lista de requerimentos, combinados com E: requerente sem diferenciar maiúsculas e acentos; período inclusivo pela data do documento (`campo_data=documento`, padrão) ou de gravação (`gravacao`, dia no fuso do Piauí) |
 | `GET /filtros` | procedimentos e municípios presentes nos requerimentos gravados, com a quantidade de cada |
 | `GET /documentos/{uuid}` | campos com valor lido, normalizado, confiança, leitura original do OCR, página e caixa |

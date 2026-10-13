@@ -122,6 +122,9 @@ class RequerimentoSiga(Modelo):
     schema_: Literal["semarh.ocr.requerimento"] = Field("semarh.ocr.requerimento", alias="schema")
     schema_versao: int = SCHEMA_VERSAO_SIGA
     uuid: str = Field(description="Identificador do requerimento (o mesmo do documento na ferramenta).")
+    numero: str | None = Field(
+        description="Número de registro legível e único: REQ-AAAA-NNNNNN (ano do recebimento e sequência no ano); "
+                    "parte de um arquivo com vários requerimentos: REQ-AAAA-NNNNNN-n.")
     versao: int = Field(description="Sobe a cada gravação; o maior número é o mais recente.")
     atualizado_em: datetime
     formulario: Formulario
@@ -157,7 +160,7 @@ def para_siga(d: Documento) -> RequerimentoSiga:
             justificativa, pendencias = h.valor_novo, [p for p in (h.valor_anterior or "").split("; ") if p]
             break
     return RequerimentoSiga(
-        uuid=d.uuid, versao=r.versao, atualizado_em=d.atualizado_em,
+        uuid=d.uuid, numero=d.numero, versao=r.versao, atualizado_em=d.atualizado_em,
         formulario=Formulario(
             requerente=Requerente(nome=r.requerente_nome, cpf_cnpj=r.cpf_cnpj, tipo_pessoa=r.tipo_pessoa,
                                   id_siga=r.pessoa_id),

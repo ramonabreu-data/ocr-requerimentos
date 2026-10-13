@@ -19,6 +19,7 @@ export default function TabelaDocumentos({
       <table className="tabela">
         <thead>
           <tr>
+            <th scope="col">Número</th>
             <th scope="col">Arquivo</th>
             <th scope="col">Requerente</th>
             <th scope="col" className="opcional">Município</th>
@@ -30,6 +31,7 @@ export default function TabelaDocumentos({
         <tbody>
           {docs.map((d) => (
             <tr key={d.uuid}>
+              <td className="numero">{d.numero ?? <span className="discreto">—</span>}</td>
               <td>
                 <Link
                   className="principal"

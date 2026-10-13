@@ -743,6 +743,18 @@
       "title": "Uuid",
       "type": "string"
     },
+    "numero": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Número de registro legível e único: REQ-AAAA-NNNNNN (ano do recebimento e sequência no ano); parte de um arquivo com vários requerimentos: REQ-AAAA-NNNNNN-n.",
+      "title": "Numero"
+    },
     "versao": {
       "description": "Sobe a cada gravação; o maior número é o mais recente.",
       "title": "Versao",
@@ -799,6 +811,7 @@
   },
   "required": [
     "uuid",
+    "numero",
     "versao",
     "atualizado_em",
     "formulario",

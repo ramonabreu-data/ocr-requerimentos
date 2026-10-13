@@ -13,7 +13,7 @@ from .extracao.finalidades import POR_CHAVE
 from .modelos import Documento
 
 COLUNAS = [
-    ("documento", "Documento (uuid)"), ("arquivo", "Arquivo"), ("status", "Status"),
+    ("numero", "Número"), ("documento", "Documento (uuid)"), ("arquivo", "Arquivo"), ("status", "Status"),
     ("requerente", "Requerente"), ("cpf_cnpj", "CPF/CNPJ"), ("procedimento", "Procedimento"),
     ("intervencao", "Tipo de intervenção"), ("municipio", "Município"), ("localidade", "Localidade"),
     ("latitude", "Latitude"), ("longitude", "Longitude"), ("finalidades", "Finalidades"),
@@ -25,7 +25,7 @@ COLUNAS = [
 
 def linha(doc: Documento) -> dict:
     r = doc.requerimento
-    base = {"documento": doc.uuid, "arquivo": doc.arquivo.nome_original, "status": doc.status,
+    base = {"numero": doc.numero or "", "documento": doc.uuid, "arquivo": doc.arquivo.nome_original, "status": doc.status,
             "assinatura": doc.assinatura.tipo or ""}
     if r is None:
         return {**base, "pendencias": doc.erro or ""}
@@ -76,16 +76,16 @@ def para_xlsx(docs: Iterable[Documento]) -> bytes:
     _formatar(ws)
 
     wi = wb.create_sheet("Irrigação")
-    wi.append(["Documento (uuid)", "Requerente", "Linha", "Sistema de irrigação", "Área (ha)", "Cultura", "Confiança (%)"])
+    wi.append(["Número", "Documento (uuid)", "Requerente", "Linha", "Sistema de irrigação", "Área (ha)", "Cultura", "Confiança (%)"])
     for d in docs:
         if d.requerimento:
             for it in d.requerimento.irrigacao:
-                wi.append([d.uuid, d.requerimento.requerente_nome or "", it.ordem, it.sistema, it.area_ha,
+                wi.append([d.numero or "", d.uuid, d.requerimento.requerente_nome or "", it.ordem, it.sistema, it.area_ha,
                            it.cultura, it.confianca])
     _formatar(wi)
 
     wd = wb.create_sheet("Detalhes das finalidades")
-    wd.append(["Documento (uuid)", "Requerente", "Finalidade", "Item", "Campo", "Valor"])
+    wd.append(["Número", "Documento (uuid)", "Requerente", "Finalidade", "Item", "Campo", "Valor"])
     for d in docs:
         if not d.requerimento:
             continue
@@ -93,7 +93,7 @@ def para_xlsx(docs: Iterable[Documento]) -> bytes:
             if f.chave == "irrigacao":
                 continue  # já na aba Irrigação
             for item, campo, valor in linhas_detalhes(f.chave, f.detalhes):
-                wd.append([d.uuid, d.requerimento.requerente_nome or "", f.texto, item, campo, valor])
+                wd.append([d.numero or "", d.uuid, d.requerimento.requerente_nome or "", f.texto, item, campo, valor])
     _formatar(wd)
     out = io.BytesIO()
     wb.save(out)
