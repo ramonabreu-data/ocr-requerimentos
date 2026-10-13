@@ -52,6 +52,12 @@ export interface CorpoCorrecao {
   versao?: number;
 }
 
+/** siga: JSON padrão entregue ao SIGA; completo: o JSON do documento como está gravado no bucket */
+export type FormatoJson = "siga" | "completo";
+
+const caminhoJson = (uuid: string, formato: FormatoJson) =>
+  formato === "siga" ? `/siga/requerimentos/${uuid}.json` : `/documentos/${uuid}/json`;
+
 export const api = {
   /** validarAoLer: os arquivos já foram conferidos; cada documento é validado assim que a leitura terminar */
   enviarDocumento(arquivo: File, validarAoLer = false) {
@@ -82,6 +88,10 @@ export const api = {
   // JSON padrão do SIGA com todos os requerimentos validados, gerado na hora
   jsonConsolidadoUrl: `${BASE}/siga/requerimentos.json`,
   jsonUrl: (uuid: string, versao?: number) => `${BASE}/documentos/${uuid}/json${versao ? `?v=${versao}` : ""}`,
+  jsonUrlFormato: (uuid: string, formato: FormatoJson, versao?: number) =>
+    `${BASE}${caminhoJson(uuid, formato)}${versao ? `?v=${versao}` : ""}`,
+  /** o JSON do requerimento, para mostrar na aba JSON */
+  json: (uuid: string, formato: FormatoJson) => pedir<unknown>(caminhoJson(uuid, formato)),
   reprocessar: (uuid: string) => pedir<DocumentoResumo>(`/documentos/${uuid}/reprocessar`, { method: "POST" }),
   corrigir: (uuid: string, corpo: CorpoCorrecao) =>
     pedir<DocumentoDetalhe>(`/documentos/${uuid}/correcoes`, json(corpo, "PATCH")),

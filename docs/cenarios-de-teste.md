@@ -125,6 +125,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-76 | Tela em celular (≤ 400 px) | layout em coluna única, imagem acima do formulário |
 | CT-77 | Navegação só por teclado | todos os controles alcançáveis e com foco visível |
 | CT-78 | Escolher arquivos e marcar "Já estão conferidos: só armazenar" | o botão vira "Enviar e validar"/"Criar lote e validar"; ao fim da leitura, os documentos aparecem como Validado e a conferência diz "Validado no envio" |
+| CT-79 | Abrir um documento e clicar na aba JSON | árvore no padrão do SIGA; "Completo" troca para o JSON gravado; "Baixar JSON" baixa o formato escolhido; com correções não salvas, o download fica bloqueado; as edições da conferência continuam lá ao voltar |
 
 ## Resultado da última execução
 

@@ -417,6 +417,9 @@ cada campo: `valor_final`, `confianca_final`, `corrigido_manualmente` e `leitura
 palavras do OCR ficam só no JSON interno.
 
 - Na tela, **"JSON consolidado"** na barra superior baixa esse mesmo conteúdo, gerado na hora.
+- Na tela do documento, a aba **JSON** mostra o JSON do requerimento em árvore (abre e fecha cada parte),
+  no padrão do SIGA ou completo (como gravado no bucket), com os botões para copiar e baixar. O endereço
+  `/documentos/{uuid}?aba=json` abre direto nela.
 - Configuração: `SIGA_S3_BUCKET` (sem ele a publicação fica desligada), `SIGA_S3_ENDPOINT`,
   `SIGA_S3_ACCESS_KEY`, `SIGA_S3_SECRET_KEY` (vazios usam os `S3_*`) e `SIGA_S3_PREFIXO`. Em
   desenvolvimento, o override publica num bucket `siga` do MinIO local, com intervalo de 60 s.

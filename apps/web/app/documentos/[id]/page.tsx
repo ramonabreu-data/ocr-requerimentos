@@ -4,6 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmacaoValidado from "@/components/ConfirmacaoValidado";
 import DetalhesFinalidade, { chaveDetalhe } from "@/components/DetalhesFinalidade";
+import Icone, { type NomeIcone } from "@/components/Icone";
+import PainelJson from "@/components/PainelJson";
 import Status from "@/components/Status";
 import TabelaDocumentos from "@/components/TabelaDocumentos";
 import Visor, { chaveCampo } from "@/components/Visor";
@@ -53,6 +55,12 @@ function estadoInicial(doc: DocumentoDetalhe) {
   return { simples, finalidades, irrigacao, detalhes, itens };
 }
 
+type Aba = "conferencia" | "json";
+const ABAS: { valor: Aba; rotulo: string; icone: NomeIcone }[] = [
+  { valor: "conferencia", rotulo: "Conferência", icone: "revisao" },
+  { valor: "json", rotulo: "JSON", icone: "codigo" },
+];
+
 const LISTAS = [
   "municipios", "procedimentos", "intervencoes", "finalidades", "sistemas", "culturas",
   // listas dos detalhes das finalidades (mesmas opções do formulário que gera o PDF)
@@ -74,6 +82,20 @@ export default function Conferencia() {
   const [detalhes, setDetalhes] = useState<Record<string, string>>({});
   const [itensDet, setItensDet] = useState<Record<string, number[]>>({});
   const [ativo, setAtivo] = useState<string | null>(null);
+  const [aba, setAba] = useState<Aba>("conferencia");
+  const refAbas = useRef<Record<Aba, HTMLButtonElement | null>>({ conferencia: null, json: null });
+
+  // a aba fica no endereço (?aba=json): recarregar ou compartilhar o link abre na mesma aba
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("aba") === "json") setAba("json");
+  }, []);
+  const trocarAba = (nova: Aba) => {
+    setAba(nova);
+    const url = new URL(window.location.href);
+    if (nova === "json") url.searchParams.set("aba", "json");
+    else url.searchParams.delete("aba");
+    window.history.replaceState(window.history.state, "", url);
+  };
   const [salvando, setSalvando] = useState(false);
   const [falha, setFalha] = useState<string | null>(null);
   const [feito, setFeito] = useState<string | null>(null);
@@ -231,7 +253,8 @@ export default function Conferencia() {
         <a className="botao botao--secundario" href={api.arquivoUrl(doc.uuid)} target="_blank" rel="noreferrer">
           Abrir original
         </a>
-        {doc.requerimento &&
+        {/* na aba JSON o download fica dentro dela, com o formato escolhido */}
+        {doc.requerimento && aba !== "json" &&
           (sujo ? (
             <button className="botao botao--secundario" disabled title="Salve as correções para incluí-las no JSON">
               Baixar JSON (salve antes)
@@ -359,332 +382,367 @@ export default function Conferencia() {
         </datalist>
       ))}
 
-      <div className="conferencia">
-        <Visor uuid={doc.uuid} paginas={doc.paginas_lidas} campos={campos} ativo={ativo} onSelecionar={selecionarNaFolha} />
+      {/* abas: setas do teclado trocam de aba; a conferência fica montada (escondida) para não perder edições */}
+      <div className="abas" role="tablist" aria-label="Visões do documento">
+        {ABAS.map((a, i) => (
+          <button
+            key={a.valor}
+            ref={(el) => {
+              refAbas.current[a.valor] = el;
+            }}
+            id={`aba-${a.valor}`}
+            type="button"
+            role="tab"
+            className="aba"
+            aria-selected={aba === a.valor}
+            aria-controls={`painel-${a.valor}`}
+            tabIndex={aba === a.valor ? 0 : -1}
+            onClick={() => trocarAba(a.valor)}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+              const prox = ABAS[(i + (e.key === "ArrowRight" ? 1 : ABAS.length - 1)) % ABAS.length].valor;
+              trocarAba(prox);
+              refAbas.current[prox]?.focus();
+            }}
+          >
+            <Icone nome={a.icone} tamanho={18} />
+            {a.rotulo}
+          </button>
+        ))}
+      </div>
 
-        <div className="formulario">
-          {validado ? (
-            <div className="aviso aviso--ok" role="status">
-              {req.validacao_modo === "envio"
-                ? `Validado no envio, em ${dataHora(req.validado_em)}: foi enviado como já conferido e não passou pela conferência.`
-                : `Validado em ${dataHora(req.validado_em)}.`}{" "}
-              Para alterar algum campo, corrija e salve: o documento volta para conferência.
-            </div>
-          ) : req.pendencias.length ? (
-            <div className="aviso" role="status">
-              <strong>
-                {req.pendencias.length === 1 ? "1 ponto para conferir" : `${req.pendencias.length} pontos para conferir`}
-              </strong>
-              <ul>
-                {req.pendencias.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div className="aviso aviso--ok" role="status">
-              Nenhuma pendência. Confira os campos com a folha ao lado e valide.
-            </div>
-          )}
-          {req.avisos.length > 0 && (
-            <p className="dica">Observações da leitura: {req.avisos.join("; ")}.</p>
-          )}
+      <div role="tabpanel" id="painel-json" aria-labelledby="aba-json" hidden={aba !== "json"}>
+        {aba === "json" && <PainelJson uuid={doc.uuid} versao={req.versao} validado={validado} sujo={sujo} />}
+      </div>
 
-          <section className="grupo" aria-labelledby="g-ident">
-            <h2 id="g-ident">Requerente</h2>
-            <div className="grade">
-              {entradaCampo("requerente_nome", { inteiro: true })}
-              {entradaCampo("cpf_cnpj", { mono: true })}
-              <div className="campo">
-                <span className="dica" style={{ display: "block", marginTop: "1.6rem" }}>
-                  {req.pessoa_id ? `Cadastrado no SIGA (pessoa nº ${req.pessoa_id})` : "Não encontrado no cadastro de pessoas"}
-                </span>
+      <div role="tabpanel" id="painel-conferencia" aria-labelledby="aba-conferencia" hidden={aba !== "conferencia"}>
+        <div className="conferencia">
+          <Visor uuid={doc.uuid} paginas={doc.paginas_lidas} campos={campos} ativo={ativo} onSelecionar={selecionarNaFolha} />
+
+          <div className="formulario">
+            {validado ? (
+              <div className="aviso aviso--ok" role="status">
+                {req.validacao_modo === "envio"
+                  ? `Validado no envio, em ${dataHora(req.validado_em)}: foi enviado como já conferido e não passou pela conferência.`
+                  : `Validado em ${dataHora(req.validado_em)}.`}{" "}
+                Para alterar algum campo, corrija e salve: o documento volta para conferência.
               </div>
-            </div>
-          </section>
+            ) : req.pendencias.length ? (
+              <div className="aviso" role="status">
+                <strong>
+                  {req.pendencias.length === 1 ? "1 ponto para conferir" : `${req.pendencias.length} pontos para conferir`}
+                </strong>
+                <ul>
+                  {req.pendencias.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="aviso aviso--ok" role="status">
+                Nenhuma pendência. Confira os campos com a folha ao lado e valide.
+              </div>
+            )}
+            {req.avisos.length > 0 && (
+              <p className="dica">Observações da leitura: {req.avisos.join("; ")}.</p>
+            )}
 
-          <section className="grupo" aria-labelledby="g-pedido">
-            <h2 id="g-pedido">Pedido e localização</h2>
-            <div className="grade">
-              {entradaCampo("procedimento", { lista: "lista-procedimentos", inteiro: true })}
-              {entradaCampo("tipo_intervencao", { lista: "lista-intervencoes" })}
-              {entradaCampo("municipio", { lista: "lista-municipios" })}
-              {entradaCampo("localidade", { inteiro: true })}
-              {entradaCampo("latitude", { mono: true, dica: `Em decimal: ${coord(req.latitude)}` })}
-              {entradaCampo("longitude", { mono: true, dica: `Em decimal: ${coord(req.longitude)}` })}
-              {entradaCampo("descricao_usos", { area: true, inteiro: true })}
-            </div>
-          </section>
+            <section className="grupo" aria-labelledby="g-ident">
+              <h2 id="g-ident">Requerente</h2>
+              <div className="grade">
+                {entradaCampo("requerente_nome", { inteiro: true })}
+                {entradaCampo("cpf_cnpj", { mono: true })}
+                <div className="campo">
+                  <span className="dica" style={{ display: "block", marginTop: "1.6rem" }}>
+                    {req.pessoa_id ? `Cadastrado no SIGA (pessoa nº ${req.pessoa_id})` : "Não encontrado no cadastro de pessoas"}
+                  </span>
+                </div>
+              </div>
+            </section>
 
-          <section className="grupo" aria-labelledby="g-final">
-            <h2 id="g-final">Finalidades do uso da água</h2>
-            <div className="lista-finalidades">
-              {finalidades.map((f, i) => {
-                const c = campoLista("finalidade", i);
-                const k = `finalidade:${i}`;
-                const nivel = c?.corrigido_manual ? "ok" : nivelConfianca(c?.confianca, c?.valido ?? null);
-                return (
-                  <div className="linha-acao" key={i}>
-                    <div className={`campo${k === ativo ? " campo--ativo" : ""}${nivel !== "ok" ? ` campo--${nivel}` : ""}`}>
-                      <input
-                        aria-label={`Finalidade ${i + 1}`}
-                        list="lista-finalidades"
-                        value={f}
-                        readOnly={validado}
-                        ref={(el) => {
-                          entradas.current[k] = el;
-                        }}
-                        onFocus={() => setAtivo(k)}
-                        onChange={(e) => setFinalidades((l) => l.map((v, j) => (j === i ? e.target.value : v)))}
-                      />
-                      {c?.mensagem && <p className={`mensagem${c.valido === false ? " mensagem--erro" : ""}`}>{c.mensagem}</p>}
+            <section className="grupo" aria-labelledby="g-pedido">
+              <h2 id="g-pedido">Pedido e localização</h2>
+              <div className="grade">
+                {entradaCampo("procedimento", { lista: "lista-procedimentos", inteiro: true })}
+                {entradaCampo("tipo_intervencao", { lista: "lista-intervencoes" })}
+                {entradaCampo("municipio", { lista: "lista-municipios" })}
+                {entradaCampo("localidade", { inteiro: true })}
+                {entradaCampo("latitude", { mono: true, dica: `Em decimal: ${coord(req.latitude)}` })}
+                {entradaCampo("longitude", { mono: true, dica: `Em decimal: ${coord(req.longitude)}` })}
+                {entradaCampo("descricao_usos", { area: true, inteiro: true })}
+              </div>
+            </section>
+
+            <section className="grupo" aria-labelledby="g-final">
+              <h2 id="g-final">Finalidades do uso da água</h2>
+              <div className="lista-finalidades">
+                {finalidades.map((f, i) => {
+                  const c = campoLista("finalidade", i);
+                  const k = `finalidade:${i}`;
+                  const nivel = c?.corrigido_manual ? "ok" : nivelConfianca(c?.confianca, c?.valido ?? null);
+                  return (
+                    <div className="linha-acao" key={i}>
+                      <div className={`campo${k === ativo ? " campo--ativo" : ""}${nivel !== "ok" ? ` campo--${nivel}` : ""}`}>
+                        <input
+                          aria-label={`Finalidade ${i + 1}`}
+                          list="lista-finalidades"
+                          value={f}
+                          readOnly={validado}
+                          ref={(el) => {
+                            entradas.current[k] = el;
+                          }}
+                          onFocus={() => setAtivo(k)}
+                          onChange={(e) => setFinalidades((l) => l.map((v, j) => (j === i ? e.target.value : v)))}
+                        />
+                        {c?.mensagem && <p className={`mensagem${c.valido === false ? " mensagem--erro" : ""}`}>{c.mensagem}</p>}
+                      </div>
+                      {!validado && (
+                        <button className="botao botao--texto" onClick={() => setFinalidades((l) => l.filter((_, j) => j !== i))} aria-label={`Remover finalidade ${i + 1}`}>
+                          Remover
+                        </button>
+                      )}
                     </div>
-                    {!validado && (
-                      <button className="botao botao--texto" onClick={() => setFinalidades((l) => l.filter((_, j) => j !== i))} aria-label={`Remover finalidade ${i + 1}`}>
-                        Remover
-                      </button>
-                    )}
+                  );
+                })}
+                {!validado && (
+                  <div>
+                    <button className="botao botao--secundario botao--pequeno" onClick={() => setFinalidades((l) => [...l, ""])}>
+                      Adicionar finalidade
+                    </button>
                   </div>
+                )}
+              </div>
+            </section>
+
+            {req.finalidades
+              .filter((f) => f.estrutura && f.chave && f.chave !== "irrigacao")
+              .map((f) => {
+                const fin = f.chave!;
+                const todos = [...(inicial?.itens[fin] ?? []), ...(itensDet[fin] ?? [])];
+                return (
+                  <DetalhesFinalidade
+                    key={fin}
+                    fin={f}
+                    porChave={porChave}
+                    valores={detalhes}
+                    itens={itensDet[fin] ?? []}
+                    validado={validado}
+                    ativo={ativo}
+                    entradas={entradas}
+                    onAtivar={setAtivo}
+                    onMudar={(k, v) => setDetalhes((d) => ({ ...d, [k]: v }))}
+                    onAdicionarItem={() => setItensDet((m) => ({ ...m, [fin]: [...(m[fin] ?? []), Math.max(0, ...todos) + 1] }))}
+                    onRemoverItem={(n) => setItensDet((m) => ({ ...m, [fin]: (m[fin] ?? []).filter((x) => x !== n) }))}
+                  />
                 );
               })}
-              {!validado && (
-                <div>
-                  <button className="botao botao--secundario botao--pequeno" onClick={() => setFinalidades((l) => [...l, ""])}>
-                    Adicionar finalidade
+
+            {(irrigacao.length > 0 || finalidades.some((f) => f.toLowerCase().includes("irriga"))) && (
+              <section className="grupo" aria-labelledby="g-irr">
+                <h2 id="g-irr">Irrigação</h2>
+                <div className="rolagem-x">
+                  <table className="irrigacao">
+                    <colgroup>
+                      <col className="col-sistema" />
+                      <col className="col-area" />
+                      <col />
+                      <col className="col-remover" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th scope="col">Sistema de irrigação</th>
+                        <th scope="col">Área (ha)</th>
+                        <th scope="col">Cultura</th>
+                        <th scope="col">
+                          <span className="pular">Ações</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {irrigacao.map((linha, i) => {
+                        const ordem = i + 1;
+                        const celula = (sub: keyof LinhaIrr, lista?: string) => {
+                          const c = campoLista(`irrigacao_${sub}`, ordem);
+                          const k = `irrigacao_${sub}:${ordem}`;
+                          const nivel = c?.corrigido_manual ? "ok" : nivelConfianca(c?.confianca, c?.valido ?? null);
+                          return (
+                            <div className={`campo${k === ativo ? " campo--ativo" : ""}${nivel !== "ok" ? ` campo--${nivel}` : ""}`}>
+                              <input
+                                aria-label={`${sub === "area" ? "Área irrigada" : sub === "sistema" ? "Sistema de irrigação" : "Cultura"}, linha ${ordem}`}
+                                list={lista}
+                                className={sub === "area" ? "mono" : undefined}
+                                inputMode={sub === "area" ? "decimal" : undefined}
+                                value={linha[sub]}
+                                readOnly={validado}
+                                title={c?.mensagem ?? undefined}
+                                ref={(el) => {
+                                  entradas.current[k] = el;
+                                }}
+                                onFocus={() => setAtivo(k)}
+                                onChange={(e) =>
+                                  setIrrigacao((l) => l.map((v, j) => (j === i ? { ...v, [sub]: e.target.value } : v)))
+                                }
+                              />
+                              {c?.valido === false && <p className="mensagem mensagem--erro">{c.mensagem}</p>}
+                            </div>
+                          );
+                        };
+                        return (
+                          <tr key={i}>
+                            <td data-rotulo="Sistema de irrigação">{celula("sistema", "lista-sistemas")}</td>
+                            <td className="area" data-rotulo="Área (ha)">{celula("area")}</td>
+                            <td data-rotulo="Cultura">{celula("cultura", "lista-culturas")}</td>
+                            <td className="remover">
+                              {!validado && (
+                                <button className="botao botao--texto botao--pequeno" onClick={() => setIrrigacao((l) => l.filter((_, j) => j !== i))} aria-label={`Remover linha ${ordem}`}>
+                                  Remover
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {!validado && (
+                  <button
+                    className="botao botao--secundario botao--pequeno"
+                    style={{ marginTop: "0.6rem" }}
+                    onClick={() => setIrrigacao((l) => [...l, { sistema: "", area: "", cultura: "" }])}
+                  >
+                    Adicionar linha
                   </button>
+                )}
+                {req.irrigacao.length > 0 && (
+                  <p className="dica">
+                    Área total:{" "}
+                    <span className="mono">
+                      {req.irrigacao.reduce((s, i) => s + (i.area_ha ?? 0), 0).toLocaleString("pt-BR")} ha
+                    </span>
+                  </p>
+                )}
+              </section>
+            )}
+
+            <section className="grupo" aria-labelledby="g-ass">
+              <h2 id="g-ass">Assinatura e data</h2>
+              <div className="grade">
+                {entradaCampo("assinante_nome")}
+                {entradaCampo("data_documento", { mono: true, dica: req.data_documento ? `Lida como ${data(req.data_documento)}` : undefined })}
+              </div>
+              <dl className="ficha" style={{ marginTop: "1rem" }}>
+                <dt>Assinatura</dt>
+                <dd>{ASSINATURA[doc.assinatura_tipo ?? ""] ?? "—"}</dd>
+                {doc.assinatura_tipo === "digital" &&
+                  Array.isArray((doc.assinatura_detalhes as { assinaturas?: unknown[] } | null)?.assinaturas) &&
+                  ((doc.assinatura_detalhes as { assinaturas: Record<string, unknown>[] }).assinaturas).map((a, i) => (
+                    <dd key={i} style={{ gridColumn: "2" }} className="discreto">
+                      {String(a.assinante ?? "")} {a.integra === false ? "(documento alterado depois da assinatura)" : a.integra ? "(íntegra)" : ""}
+                    </dd>
+                  ))}
+                {doc.processo_uuid && (
+                  <>
+                    <dt>Processo (QR)</dt>
+                    <dd className="mono">{doc.processo_id ? `nº ${doc.processo_id}` : "não encontrado no SIGA"}</dd>
+                  </>
+                )}
+                <dt>Confiança geral</dt>
+                <dd>{pct(req.confianca_geral)}</dd>
+              </dl>
+            </section>
+
+            {historico.length > 0 && (
+              <section className="grupo" aria-labelledby="g-hist">
+                <h2 id="g-hist">Histórico de correções</h2>
+                <ul className="historico">
+                  {historico.map((h, i) => (
+                    <li key={i}>
+                      <span className="discreto">{dataHora(h.created_at)}</span>{" "}
+                      {h.campo === "__validacao_com_pendencias__" ? (
+                        <>
+                          validado com pendências. Justificativa: <ins>{h.valor_novo}</ins>
+                        </>
+                      ) : (
+                        <>
+                          <strong>{rotuloHistorico(h.campo)}</strong>: <del>{h.valor_anterior || "vazio"}</del> para{" "}
+                          <ins>{h.valor_novo || "vazio"}</ins>
+                        </>
+                      )}
+                      {h.usuario_id && <span className="discreto">, usuário {h.usuario_id}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {justificando && (
+              <div className="grupo campo">
+                <label htmlFor="justificativa">Por que validar mesmo com pendências?</label>
+                <textarea
+                  id="justificativa"
+                  rows={3}
+                  value={justificativa}
+                  onChange={(e) => setJustificativa(e.target.value)}
+                  placeholder="Ex.: coordenada conferida em vistoria; o ponto fica na divisa entre municípios."
+                />
+                <p className="dica">A justificativa fica registrada no histórico do documento.</p>
+              </div>
+            )}
+
+            <div className="barra-acoes">
+              {falha && (
+                <div className="aviso aviso--erro" role="alert" style={{ width: "100%" }}>
+                  {falha}
                 </div>
               )}
-            </div>
-          </section>
-
-          {req.finalidades
-            .filter((f) => f.estrutura && f.chave && f.chave !== "irrigacao")
-            .map((f) => {
-              const fin = f.chave!;
-              const todos = [...(inicial?.itens[fin] ?? []), ...(itensDet[fin] ?? [])];
-              return (
-                <DetalhesFinalidade
-                  key={fin}
-                  fin={f}
-                  porChave={porChave}
-                  valores={detalhes}
-                  itens={itensDet[fin] ?? []}
-                  validado={validado}
-                  ativo={ativo}
-                  entradas={entradas}
-                  onAtivar={setAtivo}
-                  onMudar={(k, v) => setDetalhes((d) => ({ ...d, [k]: v }))}
-                  onAdicionarItem={() => setItensDet((m) => ({ ...m, [fin]: [...(m[fin] ?? []), Math.max(0, ...todos) + 1] }))}
-                  onRemoverItem={(n) => setItensDet((m) => ({ ...m, [fin]: (m[fin] ?? []).filter((x) => x !== n) }))}
-                />
-              );
-            })}
-
-          {(irrigacao.length > 0 || finalidades.some((f) => f.toLowerCase().includes("irriga"))) && (
-            <section className="grupo" aria-labelledby="g-irr">
-              <h2 id="g-irr">Irrigação</h2>
-              <div className="rolagem-x">
-                <table className="irrigacao">
-                  <colgroup>
-                    <col className="col-sistema" />
-                    <col className="col-area" />
-                    <col />
-                    <col className="col-remover" />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th scope="col">Sistema de irrigação</th>
-                      <th scope="col">Área (ha)</th>
-                      <th scope="col">Cultura</th>
-                      <th scope="col">
-                        <span className="pular">Ações</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {irrigacao.map((linha, i) => {
-                      const ordem = i + 1;
-                      const celula = (sub: keyof LinhaIrr, lista?: string) => {
-                        const c = campoLista(`irrigacao_${sub}`, ordem);
-                        const k = `irrigacao_${sub}:${ordem}`;
-                        const nivel = c?.corrigido_manual ? "ok" : nivelConfianca(c?.confianca, c?.valido ?? null);
-                        return (
-                          <div className={`campo${k === ativo ? " campo--ativo" : ""}${nivel !== "ok" ? ` campo--${nivel}` : ""}`}>
-                            <input
-                              aria-label={`${sub === "area" ? "Área irrigada" : sub === "sistema" ? "Sistema de irrigação" : "Cultura"}, linha ${ordem}`}
-                              list={lista}
-                              className={sub === "area" ? "mono" : undefined}
-                              inputMode={sub === "area" ? "decimal" : undefined}
-                              value={linha[sub]}
-                              readOnly={validado}
-                              title={c?.mensagem ?? undefined}
-                              ref={(el) => {
-                                entradas.current[k] = el;
-                              }}
-                              onFocus={() => setAtivo(k)}
-                              onChange={(e) =>
-                                setIrrigacao((l) => l.map((v, j) => (j === i ? { ...v, [sub]: e.target.value } : v)))
-                              }
-                            />
-                            {c?.valido === false && <p className="mensagem mensagem--erro">{c.mensagem}</p>}
-                          </div>
-                        );
-                      };
-                      return (
-                        <tr key={i}>
-                          <td data-rotulo="Sistema de irrigação">{celula("sistema", "lista-sistemas")}</td>
-                          <td className="area" data-rotulo="Área (ha)">{celula("area")}</td>
-                          <td data-rotulo="Cultura">{celula("cultura", "lista-culturas")}</td>
-                          <td className="remover">
-                            {!validado && (
-                              <button className="botao botao--texto botao--pequeno" onClick={() => setIrrigacao((l) => l.filter((_, j) => j !== i))} aria-label={`Remover linha ${ordem}`}>
-                                Remover
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {!validado && (
-                <button
-                  className="botao botao--secundario botao--pequeno"
-                  style={{ marginTop: "0.6rem" }}
-                  onClick={() => setIrrigacao((l) => [...l, { sistema: "", area: "", cultura: "" }])}
-                >
-                  Adicionar linha
-                </button>
+              {feito && !falha && (
+                <div className="aviso aviso--ok" role="status" style={{ width: "100%" }}>
+                  {feito}
+                </div>
               )}
-              {req.irrigacao.length > 0 && (
-                <p className="dica">
-                  Área total:{" "}
-                  <span className="mono">
-                    {req.irrigacao.reduce((s, i) => s + (i.area_ha ?? 0), 0).toLocaleString("pt-BR")} ha
-                  </span>
-                </p>
-              )}
-            </section>
-          )}
-
-          <section className="grupo" aria-labelledby="g-ass">
-            <h2 id="g-ass">Assinatura e data</h2>
-            <div className="grade">
-              {entradaCampo("assinante_nome")}
-              {entradaCampo("data_documento", { mono: true, dica: req.data_documento ? `Lida como ${data(req.data_documento)}` : undefined })}
-            </div>
-            <dl className="ficha" style={{ marginTop: "1rem" }}>
-              <dt>Assinatura</dt>
-              <dd>{ASSINATURA[doc.assinatura_tipo ?? ""] ?? "—"}</dd>
-              {doc.assinatura_tipo === "digital" &&
-                Array.isArray((doc.assinatura_detalhes as { assinaturas?: unknown[] } | null)?.assinaturas) &&
-                ((doc.assinatura_detalhes as { assinaturas: Record<string, unknown>[] }).assinaturas).map((a, i) => (
-                  <dd key={i} style={{ gridColumn: "2" }} className="discreto">
-                    {String(a.assinante ?? "")} {a.integra === false ? "(documento alterado depois da assinatura)" : a.integra ? "(íntegra)" : ""}
-                  </dd>
-                ))}
-              {doc.processo_uuid && (
-                <>
-                  <dt>Processo (QR)</dt>
-                  <dd className="mono">{doc.processo_id ? `nº ${doc.processo_id}` : "não encontrado no SIGA"}</dd>
-                </>
-              )}
-              <dt>Confiança geral</dt>
-              <dd>{pct(req.confianca_geral)}</dd>
-            </dl>
-          </section>
-
-          {historico.length > 0 && (
-            <section className="grupo" aria-labelledby="g-hist">
-              <h2 id="g-hist">Histórico de correções</h2>
-              <ul className="historico">
-                {historico.map((h, i) => (
-                  <li key={i}>
-                    <span className="discreto">{dataHora(h.created_at)}</span>{" "}
-                    {h.campo === "__validacao_com_pendencias__" ? (
-                      <>
-                        validado com pendências. Justificativa: <ins>{h.valor_novo}</ins>
-                      </>
-                    ) : (
-                      <>
-                        <strong>{rotuloHistorico(h.campo)}</strong>: <del>{h.valor_anterior || "vazio"}</del> para{" "}
-                        <ins>{h.valor_novo || "vazio"}</ins>
-                      </>
-                    )}
-                    {h.usuario_id && <span className="discreto">, usuário {h.usuario_id}</span>}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {justificando && (
-            <div className="grupo campo">
-              <label htmlFor="justificativa">Por que validar mesmo com pendências?</label>
-              <textarea
-                id="justificativa"
-                rows={3}
-                value={justificativa}
-                onChange={(e) => setJustificativa(e.target.value)}
-                placeholder="Ex.: coordenada conferida em vistoria; o ponto fica na divisa entre municípios."
-              />
-              <p className="dica">A justificativa fica registrada no histórico do documento.</p>
-            </div>
-          )}
-
-          <div className="barra-acoes">
-            {falha && (
-              <div className="aviso aviso--erro" role="alert" style={{ width: "100%" }}>
-                {falha}
-              </div>
-            )}
-            {feito && !falha && (
-              <div className="aviso aviso--ok" role="status" style={{ width: "100%" }}>
-                {feito}
-              </div>
-            )}
-            <button className="botao" onClick={salvar} disabled={!sujo || salvando}>
-              {salvando && sujo ? "Salvando…" : "Salvar correções"}
-            </button>
-            {sujo && (
-              <button
-                className="botao botao--texto"
-                onClick={() => {
-                  if (!inicial) return;
-                  setSimples(inicial.simples);
-                  setFinalidades(inicial.finalidades);
-                  setIrrigacao(inicial.irrigacao);
-                  setDetalhes(inicial.detalhes);
-                  setItensDet(inicial.itens);
-                }}
-              >
-                Desfazer alterações
+              <button className="botao" onClick={salvar} disabled={!sujo || salvando}>
+                {salvando && sujo ? "Salvando…" : "Salvar correções"}
               </button>
-            )}
-            <span className="espaco" />
-            {!validado &&
-              (justificando ? (
-                <>
-                  <button className="botao botao--texto" onClick={() => setJustificando(false)}>
-                    Cancelar
-                  </button>
-                  <button className="botao" disabled={!justificativa.trim() || salvando} onClick={() => validar(true)}>
-                    Validar com justificativa
-                  </button>
-                </>
-              ) : (
+              {sujo && (
                 <button
-                  className="botao"
-                  disabled={sujo || salvando}
-                  title={sujo ? "Salve as correções antes de validar" : undefined}
-                  onClick={() => (req.pendencias.length ? setJustificando(true) : validar(false))}
+                  className="botao botao--texto"
+                  onClick={() => {
+                    if (!inicial) return;
+                    setSimples(inicial.simples);
+                    setFinalidades(inicial.finalidades);
+                    setIrrigacao(inicial.irrigacao);
+                    setDetalhes(inicial.detalhes);
+                    setItensDet(inicial.itens);
+                  }}
                 >
-                  {req.pendencias.length ? "Validar mesmo assim" : "Validar"}
+                  Desfazer alterações
                 </button>
-              ))}
+              )}
+              <span className="espaco" />
+              {!validado &&
+                (justificando ? (
+                  <>
+                    <button className="botao botao--texto" onClick={() => setJustificando(false)}>
+                      Cancelar
+                    </button>
+                    <button className="botao" disabled={!justificativa.trim() || salvando} onClick={() => validar(true)}>
+                      Validar com justificativa
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="botao"
+                    disabled={sujo || salvando}
+                    title={sujo ? "Salve as correções antes de validar" : undefined}
+                    onClick={() => (req.pendencias.length ? setJustificando(true) : validar(false))}
+                  >
+                    {req.pendencias.length ? "Validar mesmo assim" : "Validar"}
+                  </button>
+                ))}
+            </div>
+            {sujo && !validado && <p className="dica">Salve as correções antes de validar.</p>}
           </div>
-          {sujo && !validado && <p className="dica">Salve as correções antes de validar.</p>}
         </div>
       </div>
       {validadoAgora && (

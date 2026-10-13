@@ -1045,6 +1045,253 @@ body:has(.pagina--larga) :is(.governo__interno, .topo__interno, .nav__interno, .
   margin-top: 0.15rem;
 }
 
+/* ---------------------------------------------------------------- abas do documento */
+/* mesmo desenho do menu: texto 700, ativa em azul com sublinhado de 4px */
+.abas {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--linha);
+  margin: -0.5rem 0 1.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.aba {
+  font: inherit;
+  font-weight: 700;
+  color: var(--tinta);
+  background: none;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.7rem 1rem 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease-out, border-color 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.aba .icone {
+  color: var(--tinta-2);
+  transition: color 0.15s ease-out;
+}
+
+.aba:hover {
+  color: var(--azul);
+  background: var(--azul-claro);
+}
+
+.aba:hover .icone,
+.aba[aria-selected="true"] .icone {
+  color: var(--azul);
+}
+
+.aba[aria-selected="true"] {
+  color: var(--azul);
+  border-bottom-color: var(--azul);
+}
+
+.aba:focus-visible {
+  outline: 3px dashed var(--foco);
+  outline-offset: -4px;
+}
+
+/* ---------------------------------------------------------------- aba JSON */
+.painel-json {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.painel-json__topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+
+.painel-json > .dica {
+  margin-top: 0;
+}
+
+/* escolha entre duas visões: pílulas lado a lado, a escolhida preenchida */
+.alternador {
+  display: inline-flex;
+  padding: 0.2rem;
+  gap: 0.2rem;
+  background: var(--folha);
+  border: 1px solid var(--linha);
+  border-radius: var(--r-pilula);
+}
+
+.alternador__opcao {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  min-height: 2.1rem;
+  padding: 0.3rem 1rem;
+  border: 0;
+  border-radius: var(--r-pilula);
+  background: transparent;
+  color: var(--azul);
+  cursor: pointer;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out;
+}
+
+.alternador__opcao:hover {
+  background: var(--azul-claro);
+}
+
+.alternador__opcao[aria-pressed="true"] {
+  background: var(--azul);
+  color: #fff;
+}
+
+.alternador__opcao:focus-visible {
+  outline: 3px dashed var(--foco);
+  outline-offset: 3px;
+}
+
+.painel-json__conteudo {
+  padding: 0;
+  overflow: hidden;
+}
+
+.painel-json__barra {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.5rem 1.4rem;
+  border-bottom: 1px solid var(--linha-suave);
+  font-size: 0.9rem;
+}
+
+.painel-json__conteudo > .carregando,
+.painel-json__conteudo > .aviso {
+  margin: 1.25rem 1.4rem;
+}
+
+.arvore-json {
+  font-family: var(--fonte-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 0;
+  padding: 1rem 1.4rem 1.25rem;
+  overflow-x: auto;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.arvore-json ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 1.4rem;
+  border-left: 1px solid var(--linha-suave);
+  margin-left: 0.3rem;
+}
+
+.arvore-json,
+.arvore-json li {
+  list-style: none;
+}
+
+.json-linha {
+  padding-left: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.arvore-json summary {
+  cursor: pointer;
+  border-radius: var(--r-pequeno);
+  padding-right: 0.4rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.arvore-json summary:hover {
+  background: var(--azul-claro);
+}
+
+.arvore-json summary:focus-visible {
+  outline: 3px dashed var(--foco);
+  outline-offset: 2px;
+}
+
+.arvore-json summary::marker {
+  color: var(--tinta-2);
+}
+
+.json-fecha {
+  display: block;
+  padding-left: 1.05rem;
+}
+
+/* fechado: { … } com o resumo ao lado; aberto: só a chave de abertura */
+details:not([open]) > summary [data-fecha]::after {
+  content: " … " attr(data-fecha);
+}
+
+.json-resumo {
+  margin-left: 0.6rem;
+  font-family: var(--fonte);
+  font-size: 0.8125rem;
+  color: var(--tinta-2);
+}
+
+.json-id {
+  margin-left: 0.6rem;
+  color: var(--azul-escuro);
+}
+
+details[open] > summary .json-resumo,
+details[open] > summary .json-id {
+  display: none;
+}
+
+.json-chave {
+  color: var(--azul-escuro);
+  font-weight: 700;
+}
+
+.json-indice {
+  color: var(--tinta-2);
+}
+
+.json-pontuacao {
+  color: var(--tinta-2);
+}
+
+.json-texto {
+  color: var(--verde-texto);
+}
+
+.json-numero {
+  color: var(--azul);
+}
+
+.json-logico,
+.json-nulo {
+  color: var(--atencao);
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .painel-json__topo .acoes {
+    width: 100%;
+  }
+
+  .arvore-json {
+    padding: 0.75rem 0.85rem 1rem;
+  }
+
+  .arvore-json ul {
+    padding-left: 0.9rem;
+  }
+}
+
 /* ---------------------------------------------------------------- conferência */
 .conferencia {
   display: grid;

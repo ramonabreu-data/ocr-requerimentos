@@ -12,6 +12,7 @@ const CAMINHOS = {
   nuvem: "M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1 .5 7.97M12 12v8m0-8-3 3m3-3 3 3",
   arquivo: "M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7l-4-4Zm0 0v4h4",
   confirmado: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-13 0 3 3 5-6",
+  codigo: "M8 6 3 12l5 6M16 6l5 6-5 6M14 4l-4 16",
 } as const;
 
 export type NomeIcone = keyof typeof CAMINHOS;
