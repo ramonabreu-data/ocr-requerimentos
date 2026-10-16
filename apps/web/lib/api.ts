@@ -55,6 +55,9 @@ export interface CorpoCorrecao {
 /** siga: JSON padrão entregue ao SIGA; completo: o JSON do documento como está gravado no bucket */
 export type FormatoJson = "siga" | "completo";
 
+/** validados: o requerimentos.json que o SIGA recebe; todos: inclui os lidos ainda não validados */
+export type SituacaoConsolidado = "validados" | "todos";
+
 const caminhoJson = (uuid: string, formato: FormatoJson) =>
   formato === "siga" ? `/siga/requerimentos/${uuid}.json` : `/documentos/${uuid}/json`;
 
@@ -86,7 +89,11 @@ export const api = {
   arquivoUrl: (uuid: string) => `${BASE}/documentos/${uuid}/arquivo`,
   // a versão na URL garante que o navegador baixe o arquivo gravado mais recente
   // JSON padrão do SIGA com todos os requerimentos validados, gerado na hora
-  jsonConsolidadoUrl: `${BASE}/siga/requerimentos.json`,
+  jsonConsolidadoUrl: (situacao: SituacaoConsolidado = "validados") =>
+    `${BASE}/siga/requerimentos.json${situacao === "todos" ? "?situacao=todos" : ""}`,
+  /** o JSON com todos os requerimentos, para a aba JSON */
+  jsonConsolidado: (situacao: SituacaoConsolidado) =>
+    pedir<unknown>(`/siga/requerimentos.json${situacao === "todos" ? "?situacao=todos" : ""}`),
   jsonUrl: (uuid: string, versao?: number) => `${BASE}/documentos/${uuid}/json${versao ? `?v=${versao}` : ""}`,
   jsonUrlFormato: (uuid: string, formato: FormatoJson, versao?: number) =>
     `${BASE}${caminhoJson(uuid, formato)}${versao ? `?v=${versao}` : ""}`,

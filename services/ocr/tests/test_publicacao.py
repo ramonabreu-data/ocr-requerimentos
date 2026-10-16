@@ -71,6 +71,18 @@ def test_ct113_consolidado_so_com_validados_e_atualizado(repo):
     assert publicacao.situacao(repo)["consolidado_gerado_em"]
 
 
+def test_ct127_consolidado_com_todos_os_lidos(repo):
+    a = _salvar(repo, _validado(nome="Ana"))
+    r = _salvar(repo, _doc(status="revisao"))
+    _salvar(repo, _doc(status="desconsiderado"))
+    _salvar(repo, _doc(status="erro").model_copy(update={"requerimento": None}))
+    j = json.loads(b"".join(publicacao.consolidado(repo, ("extraido", "revisao", "validado"))).decode())
+    assert j["total"] == 2 and [x["uuid"] for x in j["requerimentos"]] == [a.uuid, r.uuid]
+    assert [x["validacao"]["validado_em"] is None for x in j["requerimentos"]] == [False, True]  # o não validado
+    # o arquivo do bucket do SIGA continua só com os validados
+    assert publicacao.gravar_consolidado(repo) == 1
+
+
 def test_ct114_consolidado_vazio_e_em_blocos(repo, monkeypatch):
     assert json.loads(b"".join(publicacao.consolidado(repo)))["total"] == 0
     monkeypatch.setattr(publicacao, "BLOCO", 2)

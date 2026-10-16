@@ -202,19 +202,21 @@ def json_siga(d: Documento, indent: int | None = 2) -> str:
 
 
 # ----------------------------------------------------------------- consolidado
-def consolidado(repo: Repositorio) -> Iterator[bytes]:
-    """O requerimentos.json em pedaços (memória constante): validados do mais antigo ao mais novo."""
+def consolidado(repo: Repositorio, situacoes: tuple[str, ...] = ("validado",)) -> Iterator[bytes]:
+    """O requerimentos.json em pedaços (memória constante): validados do mais antigo ao mais novo. Com outras
+    `situacoes` (para conferência na tela), entram também os lidos ainda não validados (com `validacao.validado_em`
+    nulo). O que vai para o bucket do SIGA é sempre só os validados."""
     yield (f'{{"schema": "semarh.ocr.requerimentos", "schema_versao": {SCHEMA_VERSAO_SIGA}, '
            f'"gerado_em": {json.dumps(agora().isoformat())}, "requerimentos": [').encode()
     total, desloc = 0, 0
     while True:
-        _, resumos = repo.consultar(status=["validado"], crescente=True, pagina=desloc // BLOCO + 1, tamanho=BLOCO)
+        _, resumos = repo.consultar(status=list(situacoes), crescente=True, pagina=desloc // BLOCO + 1, tamanho=BLOCO)
         if not resumos:
             break
         desloc += len(resumos)
         partes = []
         for d in repo.obter_varios([r["uuid"] for r in resumos]):
-            if d.status == "validado" and d.requerimento is not None:
+            if d.status in situacoes and d.requerimento is not None:
                 partes.append(json_siga(d, indent=None))
         if partes:
             yield ((",\n" if total else "\n") + ",\n".join(partes)).encode()

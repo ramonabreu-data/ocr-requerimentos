@@ -167,6 +167,15 @@ def test_ct58_desconsiderar_pela_api(cliente, pdf_exemplo):
     assert cliente.post(f"/documentos/{uid}/reconsiderar").status_code == 409
 
 
+def test_ct59_json_de_todos_os_requerimentos(cliente, pdf_exemplo):
+    uid = _enviar(cliente, pdf_exemplo).json()["uuid"]  # lido, com pendência: não validado
+    assert cliente.get("/siga/requerimentos.json").json()["total"] == 0
+    r = cliente.get("/siga/requerimentos.json", params={"situacao": "todos"})
+    assert r.status_code == 200 and "requerimentos-todos-" in r.headers["content-disposition"]
+    assert [x["uuid"] for x in r.json()["requerimentos"]] == [uid]
+    assert cliente.get("/siga/requerimentos.json", params={"situacao": "outra"}).status_code == 422
+
+
 def test_ct45_ponto_fora_do_municipio(cliente):
     # polígono fictício de Altos no stub vai de -42,75 a -42,25 de longitude
     pdf = F.pdf_requerimento(F.DadosReq(longitude="-42°10'00\""))

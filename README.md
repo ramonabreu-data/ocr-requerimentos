@@ -454,7 +454,10 @@ cada campo: `valor_final`, `confianca_final`, `corrigido_manualmente` e `leitura
 `historico_de_revisoes` e `origem` (arquivo, SHA-256, QR code, versão do OCR). Texto e posição das
 palavras do OCR ficam só no JSON interno.
 
-- Na tela, **"JSON consolidado"** na barra superior baixa esse mesmo conteúdo, gerado na hora.
+- Na tela, a aba **JSON** mostra esse mesmo conteúdo em árvore, gerado na hora, com busca por número,
+  requerente, CPF/CNPJ, município ou arquivo, e botões para copiar e baixar. A opção *Todos os lidos* inclui
+  os que ainda aguardam conferência (com `validacao.validado_em` nulo), só para conferir: o SIGA recebe só os
+  validados.
 - Na tela do documento, a aba **JSON** mostra o JSON do requerimento em árvore (abre e fecha cada parte),
   no padrão do SIGA ou completo (como gravado no bucket), com os botões para copiar e baixar. O endereço
   `/documentos/{uuid}?aba=json` abre direto nela.
@@ -562,7 +565,7 @@ de propósito, para passar pelas regras do próprio Django.
 | `POST /documentos/{uuid}/reconsiderar` | devolve um documento desconsiderado à revisão |
 | `POST /documentos/{uuid}/reprocessar` | lê de novo e reaplica as correções manuais (409 se já validado) |
 | `GET /documentos/{uuid}/revisoes` | histórico de correções |
-| `GET /siga/requerimentos.json` | JSON padrão do SIGA com todos os validados, gerado na hora (o botão "JSON consolidado") |
+| `GET /siga/requerimentos.json` | JSON padrão do SIGA com todos os validados, gerado na hora (a aba JSON); `situacao=todos` inclui os lidos ainda não validados |
 | `GET /siga/requerimentos/{uuid}.json` | JSON padrão do SIGA de um requerimento, para conferência |
 | `GET /siga/situacao`, `POST /siga/republicar` | situação da publicação; reenvio de todos os validados e do consolidado |
 | `GET /referencias/{municipios\|procedimentos\|intervencoes\|finalidades\|sistemas\|culturas}` | listas para a tela |

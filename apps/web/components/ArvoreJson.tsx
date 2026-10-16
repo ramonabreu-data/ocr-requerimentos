@@ -1,5 +1,8 @@
+"use client";
 // Mostra um JSON como árvore: objetos e listas abrem e fecham (details/summary, acessível por teclado),
-// valores coloridos pelo tipo. `abertoAte`: níveis abertos ao montar (Infinity = tudo aberto).
+// valores coloridos pelo tipo. `abertoAte`: níveis abertos ao montar (Infinity = tudo aberto). O conteúdo de
+// um nó só é montado quando ele abre: o JSON com todos os requerimentos tem centenas de milhares de nós.
+import { useState } from "react";
 
 type Json = string | number | boolean | null | Json[] | { [chave: string]: Json };
 
@@ -24,11 +27,20 @@ function Rotulo({ chave, indice }: { chave?: string; indice: boolean }) {
 const IDENTIFICADORES = ["campo", "nome", "texto", "tipo", "arquivo"];
 
 function identificador(v: { [chave: string]: Json }): string | null {
+  // requerimento no JSON do SIGA: número, requerente e se ainda não foi validado
+  if (typeof v.numero === "string" && v.formulario && typeof v.formulario === "object") {
+    const f = v.formulario as { [chave: string]: Json };
+    const req = f.requerente as { [chave: string]: Json } | null;
+    const val = v.validacao as { [chave: string]: Json } | null;
+    const nome = req && typeof req.nome === "string" ? ` · ${req.nome}` : "";
+    return `${v.numero}${nome}${val && val.validado_em == null ? " · não validado" : ""}`;
+  }
   for (const k of IDENTIFICADORES) if (typeof v[k] === "string" && v[k]) return v[k] as string;
   return null;
 }
 
 function No({ chave, indice, v, nivel, abertoAte }: { chave?: string; indice: boolean; v: Json; nivel: number; abertoAte: number }) {
+  const [aberto, setAberto] = useState(nivel < abertoAte);
   if (v === null || typeof v !== "object") {
     return (
       <li className="json-linha">
@@ -55,7 +67,7 @@ function No({ chave, indice, v, nivel, abertoAte }: { chave?: string; indice: bo
   const id = indice && !lista ? identificador(v as { [chave: string]: Json }) : null;
   return (
     <li>
-      <details open={nivel < abertoAte}>
+      <details open={aberto} onToggle={(e) => setAberto(e.currentTarget.open)}>
         <summary>
           <Rotulo chave={chave} indice={indice} />
           <span className="json-pontuacao" data-fecha={fecha}>
@@ -64,11 +76,13 @@ function No({ chave, indice, v, nivel, abertoAte }: { chave?: string; indice: bo
           {id && <span className="json-id">{id}</span>}
           <span className="json-resumo">{lista ? `${n} ${n === 1 ? "item" : "itens"}` : `${n} ${n === 1 ? "campo" : "campos"}`}</span>
         </summary>
-        <ul>
-          {filhos.map(([k, x]) => (
-            <No key={k} chave={k} indice={lista} v={x} nivel={nivel + 1} abertoAte={abertoAte} />
-          ))}
-        </ul>
+        {aberto && (
+          <ul>
+            {filhos.map(([k, x]) => (
+              <No key={k} chave={k} indice={lista} v={x} nivel={nivel + 1} abertoAte={abertoAte} />
+            ))}
+          </ul>
+        )}
         <span className="json-pontuacao json-fecha">{fecha}</span>
       </details>
     </li>

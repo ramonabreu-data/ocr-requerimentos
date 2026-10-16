@@ -76,6 +76,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-56 | Lote já conferido com PDF de 2 requerimentos e um arquivo já enviado | `POST /lotes` com `validar_ao_ler` | as 2 partes validadas; o duplicado mantém a situação que tinha |
 | CT-57 | Lote já conferido com um PDF ilegível para o parser e o PDF real | `POST /lotes` com `validar_ao_ler` | o ilegível (abaixo de 50%) fica em `revisao` com `conferencia_obrigatoria` e aviso; o real é validado; contagem no lote, em `/estatisticas`, `/revisao?obrigatoria=true` e `/documentos?obrigatoria=true`; validado na tela, sai da contagem |
 | CT-58 | Desconsiderar o PDF real pela API e depois reconsiderar | `POST /desconsiderar` / `/reconsiderar` | sem motivo: 409; com motivo: `desconsiderado`, sai da revisão e do consolidado do SIGA, histórico com motivo e usuário; validar, corrigir e ler de novo dão 409; reconsiderado volta para `revisao`; reconsiderar de novo: 409 |
+| CT-59 | PDF real lido, com pendência | `GET /siga/requerimentos.json` com e sem `situacao=todos` | sem: `total` 0; com: o requerimento, em arquivo `requerimentos-todos-…`; outro valor: 422 |
 | CT-90 | Documento com latitude e irrigação corrigidas | `POST /reprocessar` | correções reaplicadas sobre a nova leitura; auditoria só registra `__reprocessamento__` |
 | CT-91 | Documento sem correções | `POST /reprocessar` | nenhuma entrada no histórico |
 | CT-92 | Mesmo arquivo em dois lotes | `POST /lotes` duas vezes | os dois lotes contam e exportam o documento; validar atualiza os dois |
@@ -114,6 +115,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-111 | Requerimento validado com pendências e campo corrigido | `json_siga` | formulário consolidado, campo com `valor_final` e `leitura_original_ocr`, justificativa e pendências da validação; sem posição/texto do OCR |
 | CT-112 | Documento validado e depois corrigido | `salvar` | publicado no bucket do SIGA ao validar; removido quando volta a pendente; não validado nunca vai |
 | CT-113 | Dois validados e um em revisão | `consolidado` / `gravar_consolidado` | só os validados, do mais antigo ao mais novo; arquivo gravado com o mesmo conteúdo |
+| CT-127 | Um validado, um em revisão, um desconsiderado e um erro sem leitura | `consolidado` com extraido, revisao e validado | só o validado e o em revisão (este com `validado_em` nulo); o arquivo do bucket do SIGA continua só com o validado |
 | CT-114 | Nenhum validado; cinco em blocos de 2 | `consolidado` | JSON válido com `total` 0; depois os 5, na ordem |
 | CT-115 | Publicação desligada / documento inexistente | `publicar_documento` | nada é gravado; inexistente é retirado do destino |
 
@@ -140,6 +142,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-79 | Abrir um documento e clicar na aba JSON | árvore no padrão do SIGA; "Completo" troca para o JSON gravado; "Baixar JSON" baixa o formato escolhido; com correções não salvas, o download fica bloqueado; as edições da conferência continuam lá ao voltar |
 | CT-80 | Enviar como já conferido um lote com um requerimento lido abaixo de 50% | menu Revisão com contador vermelho; o lote avisa e leva à aba "Conferência obrigatória"; o documento tem o selo na lista e o alerta no topo da conferência; validado na tela, some da aba |
 | CT-81 | Na conferência, corrigir um campo e clicar em "Salvar e validar"; corrigir outro e clicar em "Descartar alterações"; desconsiderar com motivo e reconsiderar | grava e valida num clique (pede justificativa se sobrar pendência); o descarte volta aos valores gravados sem gravar; desconsiderado mostra o aviso e o motivo e trava o formulário; sair da página com alteração não salva pede confirmação |
+| CT-82 | Abrir a aba JSON, alternar entre "Validados" e "Todos os lidos" e buscar por um CPF | árvore com um item por requerimento (número, requerente e "não validado" quando for o caso); a busca filtra só a tela e diz quantos de quantos; Copiar e Baixar levam o JSON completo |
 
 ## Resultado da última execução
 

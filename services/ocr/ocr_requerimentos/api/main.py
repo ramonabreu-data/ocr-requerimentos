@@ -588,11 +588,14 @@ def historico(uid: str):
 
 # ----------------------------------------------------------------- publicação para o SIGA
 @app.get("/siga/requerimentos.json", dependencies=Protegido)
-def json_consolidado():
+def json_consolidado(situacao: str = Query("validados", pattern="^(validados|todos)$")):
     """O JSON padrão do SIGA com todos os requerimentos validados, gerado agora (sempre atualizado).
-    É o mesmo conteúdo do requerimentos.json que vai para o bucket do SIGA."""
-    nome = f"requerimentos-siga-{datetime.now(FUSO):%Y%m%d-%H%M}.json"
-    return StreamingResponse(publicacao.consolidado(repositorio()), media_type="application/json",
+    É o mesmo conteúdo do requerimentos.json que vai para o bucket do SIGA. `situacao=todos`: inclui os lidos
+    ainda não validados (em revisão e prontos para validar), para conferência; não é o que o SIGA recebe."""
+    todos = situacao == "todos"
+    nome = f"requerimentos-{'todos' if todos else 'siga'}-{datetime.now(FUSO):%Y%m%d-%H%M}.json"
+    situacoes = ("extraido", "revisao", "validado") if todos else ("validado",)
+    return StreamingResponse(publicacao.consolidado(repositorio(), situacoes), media_type="application/json",
                              headers={"Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
 
 
