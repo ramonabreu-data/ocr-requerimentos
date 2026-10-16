@@ -125,6 +125,9 @@ class Coordenada:
         return self.decimal is not None and not self.erros
 
 
+AVISO_SINAL_AUSENTE = "sinal negativo ausente; assumido Sul/Oeste"
+
+
 def normalizar_coordenada(bruto: str | None, eixo: str) -> Coordenada:
     """Converte graus/minutos/segundos (ou graus decimais) para decimal.
 
@@ -180,7 +183,7 @@ def normalizar_coordenada(bruto: str | None, eixo: str) -> Coordenada:
     elif negativo or letra in ("S", "W", "O"):
         valor = -valor
     else:
-        coord.avisos.append("sinal negativo ausente; assumido Sul/Oeste")
+        coord.avisos.append(AVISO_SINAL_AUSENTE)
         valor = -valor
     coord.decimal = round(valor, 7)
     return coord

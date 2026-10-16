@@ -75,8 +75,29 @@ def melhor_correspondencia(texto: str | None, opcoes: list[Ref], limiar: float =
         return None, 0.0
     _, score, idx = resultado
     if score < limiar:
-        return None, float(score)
+        return _nome_incompleto(alvo, candidatos, dono) or _letras_espacadas(alvo, candidatos, dono, limiar) \
+            or (None, float(score))
     return dono[idx], float(round(score, 2))
+
+
+def _nome_incompleto(alvo: str, candidatos: list[str], dono: list[Ref]) -> tuple[Ref, float] | None:
+    """Nome escrito pela metade, que só um item da lista completa: "Betânia" (Betânia do Piauí), "Capitão
+    Gervásio" (Capitão Gervásio Oliveira), "Unidade Residencial" (... não atendida por rede de água)."""
+    if len(alvo) < 5:
+        return None
+    donos = {id(dono[i]): dono[i] for i, c in enumerate(candidatos) if c.startswith(alvo + " ")}
+    return (next(iter(donos.values())), 85.0) if len(donos) == 1 else None
+
+
+def _letras_espacadas(alvo: str, candidatos: list[str], dono: list[Ref], limiar: float) -> tuple[Ref, float] | None:
+    """Texto com as letras separadas por espaço ("S Ã O R A I M U N D O"): compara sem os espaços."""
+    partes = alvo.split()
+    if len(partes) < 4 or sum(len(p) == 1 for p in partes) < 0.7 * len(partes):
+        return None
+    junto = alvo.replace(" ", "")
+    pontos = [fuzz.ratio(junto, c.replace(" ", "")) for c in candidatos]
+    i = max(range(len(candidatos)), key=pontos.__getitem__)
+    return (dono[i], float(round(min(pontos[i], 90.0), 2))) if pontos[i] >= max(limiar, 90) else None
 
 
 def _pontuar(a: str, b: str, **_: Any) -> float:

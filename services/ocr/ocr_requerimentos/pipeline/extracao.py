@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 
 from ..extracao.normalizadores import corrigir_digitos
-from ..extracao.parser import RE_TITULO, ExtracaoBruta, extrair
+from ..extracao.parser import RE_INICIO_PARAGRAFO, RE_TITULO, ExtracaoBruta, extrair
 from ..extracao.texto import normalizar_paralelo
 from ..extracao.tipos import CampoBruto, PaginaLida, uniao_bbox
 from ..extracao.validacao import Referencias, Resultado, validar
@@ -45,11 +45,15 @@ class ResultadoArquivo:
 
 
 def dividir_por_requerimento(paginas: list[PaginaLida]) -> list[list[PaginaLida]]:
-    """Cada página cujo topo contém o título REQUERIMENTO inicia um novo requerimento."""
+    """Cada página cujo topo contém o título REQUERIMENTO e que traz o parágrafo do requerente ("inscrito sob
+    o CPF/CNPJ...", "vem requerer...") inicia um novo requerimento. O SIGA repete o título no topo de cada página
+    de um requerimento longo: página com o título, mas sem o parágrafo, continua o requerimento anterior."""
     grupos: list[list[PaginaLida]] = []
     for p in paginas:
         topo = " ".join(l.texto for l in p.linhas[:3])
-        inicia = bool(RE_TITULO.search(normalizar_paralelo(topo)))
+        inicia = bool(RE_TITULO.search(normalizar_paralelo(topo))) and (
+            not grupos or bool(RE_INICIO_PARAGRAFO.search(normalizar_paralelo(" ".join(l.texto for l in p.linhas))))
+        )
         if inicia or not grupos:
             grupos.append([p])
         else:
@@ -129,11 +133,14 @@ def processar_paginas(
     remover_azul: bool = True,
 ) -> Segmento:
     linhas = [ln for p in paginas for ln in p.linhas]
-    try:
-        titulos = [f.nome for f in refs.finalidades]
-    except Exception:  # noqa: BLE001 - referências indisponíveis não impedem a leitura
-        titulos = []
-    ex = extrair(linhas, titulos_extra=titulos)
+    def nomes(lista: str) -> list[str]:
+        try:
+            return [r.nome for r in getattr(refs, lista)]
+        except Exception:  # noqa: BLE001 - referências indisponíveis não impedem a leitura
+            return []
+
+    ex = extrair(linhas, titulos_extra=nomes("finalidades"), procedimentos=nomes("procedimentos"),
+                 intervencoes=nomes("intervencoes"), municipios=nomes("municipios"))
     if conferir_numeros:
         _conferir(ex, paginas, remover_azul)
     resultado = validar(ex, refs, limiar)

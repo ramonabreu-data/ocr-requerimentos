@@ -83,7 +83,8 @@ FINALIDADES: tuple[FinalidadeDef, ...] = (
         rotulo_linhas="estabelecimentos",
     ),
     FinalidadeDef(
-        "criacao_animal", "Criação Animal", ("Criação Animal",),
+        # alguns requerimentos escrevem "Consumo Animal", com a mesma tabela
+        "criacao_animal", "Criação Animal", ("Criação Animal", "Consumo Animal"),
         colunas=(
             CampoDef("especie", "Espécie", "lista", "especie_animal"),
             CampoDef("sistema", "Sistema de Criação", "lista", "sistema_criacao"),

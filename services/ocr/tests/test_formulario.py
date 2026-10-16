@@ -221,8 +221,10 @@ def test_ct84_coordenadas_sem_sinal(nome, motor, refs_form):
     _, seg = _rodar(nome, motor, refs_form)
     conferir(seg, CENARIOS[nome])  # sinal recolocado: valores iguais aos digitados com '-'
     r = seg.resultado
-    assert r.status == "revisao"  # sinal assumido pede conferência humana
+    # o Piauí fica inteiro no Sul/Oeste: o sinal assumido fica registrado, mas não vira pendência
     assert "sinal negativo ausente" in (r.campos["latitude"].mensagem or "")
+    assert r.campos["latitude"].confianca >= 80 and r.campos["longitude"].confianca >= 80
+    assert not any(p.startswith(("Latitude", "Longitude")) for p in r.pendencias)
 
 
 # ------------------------------------------------------------------ CT-85: mesmos PDFs impressos e digitalizados

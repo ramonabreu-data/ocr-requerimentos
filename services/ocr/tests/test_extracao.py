@@ -215,3 +215,117 @@ def test_texto_atual_com_razao_social_e_carimbo_de_assinatura(motor, refs):
     assert _irrigacao(seg) == IRRIGACAO_REAL
     assert not any("Assinado" in p.texto for pg in res.leitura.paginas for p in pg.palavras)
     assert seg.assinatura.tipo == "digital"
+
+
+# ------------------------------------------------------------------ parágrafo fora do modelo (lido por partes)
+def _linhas(texto: str, pagina: int = 1):
+    """Linhas de texto nativo: uma palavra ao lado da outra, uma linha abaixo da outra."""
+    pal = []
+    for i, linha in enumerate(texto.strip().splitlines()):
+        x = 0.0
+        for w in linha.split():
+            pal.append(Palavra(w, 100, (x, i * 20.0, x + 6 * len(w), i * 20.0 + 10), pagina))
+            x += 6 * len(w) + 6
+    return agrupar_linhas(pal)
+
+
+def _bruto(ex):
+    return {k: getattr(ex, k).valor for k in ("requerente_nome", "cpf_cnpj", "procedimento", "tipo_intervencao",
+                                              "municipio", "localidade", "latitude", "longitude")}
+
+
+def test_ct120_paragrafo_com_localidade_antes_do_municipio():
+    ex = extrair(_linhas("""
+REQUERIMENTO
+A Secretaria do Saneamento Básico do Piauí, inscrito sob o CNPJ n° 22.057.819/0001-28, vem requerer
+Autorização e Outorga Preventiva para perfuração de Poço Tubular na localidade Lagoa do Canto,
+zona rural do município de Santo Antônio de Lisboa, Latitude 06°58'30.42"S e Longitude: 41°16'55.31"O.
+Descrição dos usos da água
+Captação subterrânea para abastecimento.
+"""))
+    assert _bruto(ex) == {
+        "requerente_nome": "Secretaria do Saneamento Básico do Piauí", "cpf_cnpj": "22.057.819/0001-28",
+        "procedimento": "Autorização e Outorga Preventiva para perfuração de Poço Tubular",
+        "tipo_intervencao": "Poço Tubular", "municipio": "Santo Antônio de Lisboa", "localidade": "Lagoa do Canto",
+        "latitude": "06°58'30.42\"S", "longitude": "41°16'55.31\"O",
+    }
+    assert any("por partes" in a for a in ex.avisos)
+
+
+def test_ct121_carta_com_localizacao_do_poco_e_uf():
+    """"inscrita no CNPJ sob nº", sede e poço em municípios diferentes, sem o rótulo "município"."""
+    ex = extrair(_linhas("""
+REQUERIMENTO
+ILUSTRÍSSIMO(A) DIRETOR(A) DE RECURSOS HÍDRICOS DA SECRETARIA ESTADUAL DO MEIO AMBIENTE
+TERESINA-PI
+AGRO EXEMPLO LTDA., pessoa jurídica de direito privado, inscrita no CNPJ sob nº 11.222.333/0001-81, com
+sede na Fazenda Boa Vista, S/N, Zona Rural de Palmeira do Piauí – PI, CEP: 64.925-000, vem requerer a
+Autorização para Perfuração de Poço Tubular e Outorga Preventiva – AUTPOOP, para captação de água.
+Localização do Poço:
+Fazenda Boa Vista II, S/N, Zona Rural de Uruçuí – PI, CEP: 64.925-000.
+Coordenadas Geográficas: Latitude 8°25′37,6833″S e Longitude 44°28′18,7389″W.
+Descrição dos usos da água
+Irrigação de soja.
+"""))
+    b = _bruto(ex)
+    assert b["requerente_nome"] == "AGRO EXEMPLO LTDA" and b["cpf_cnpj"] == "11.222.333/0001-81"
+    assert b["procedimento"] == "Autorização para Perfuração de Poço Tubular e Outorga Preventiva"
+    assert b["tipo_intervencao"] == "Poço Tubular"
+    assert b["municipio"] == "Uruçuí" and ex.municipio.confianca == 85  # o do poço, não o da sede
+    assert b["localidade"] == "Fazenda Boa Vista II, S/N"
+    assert b["latitude"] == "8°25′37,6833″S" and b["longitude"] == "44°28′18,7389″W"
+
+
+def test_ct122_nome_quebrado_localidade_sem_rotulo_e_coordenada_sem_longitude():
+    ex = extrair(_linhas("""
+REQUERIMENTO
+Distribuidora Exemplo Comércio e Representações Ltda-
+Distribuidora Exemplo, inscrita sob o CNPJ n° 11.222.333/0001-81
+vem requerer, a Autorização de Perfuração e Outorga Preventiva
+de um poço tubular a ser localizado no município Teresina, na BR
+316 km 23- Chapadinha, com as coordenadas geográficas: Latitude
+05°17'39,95"S e 42°42'49,46"W.
+"""))
+    b = _bruto(ex)
+    assert b["requerente_nome"] == "Distribuidora Exemplo Comércio e Representações Ltda- Distribuidora Exemplo"
+    assert b["municipio"] == "Teresina" and b["tipo_intervencao"] == "poço tubular"
+    assert b["localidade"] == "BR 316 km 23- Chapadinha" and ex.localidade.confianca == 75  # deduzida: conferir
+    assert b["latitude"] == "05°17'39,95\"S" and b["longitude"] == "42°42'49,46\"W"
+
+
+def test_ct123_pagina_seguinte_repete_o_titulo(motor, refs):
+    """O SIGA repete "REQUERIMENTO" no topo de cada página: a segunda página continua o mesmo requerimento."""
+    import pymupdf
+
+    doc = pymupdf.open(stream=F.pdf_requerimento(F.DadosReq()), filetype="pdf")
+    doc.new_page().insert_text((72, 72), "REQUERIMENTO\nCaracterísticas gerais do projeto: 57 pivôs centrais.")
+    res = processar_arquivo(doc.tobytes(), motor, refs, "longo.pdf")
+    assert len(res.segmentos) == 1 and [p.numero for p in res.segmentos[0].paginas] == [1, 2]
+    assert res.segmentos[0].resultado.campos["municipio"].valor_normalizado == "Altos"
+
+
+def test_ct124_finalidade_antes_da_descricao_e_titulo_na_mesma_linha():
+    ex = extrair(_linhas("""
+REQUERIMENTO
+JOSÉ EXEMPLO, inscrito sob o CPF/CNPJ n° 529.982.247-25, vem requerer Regularização de Poço Tubular para
+Poço Tubular localizado no município ALTOS, localidade SÍTIO NOVO, latitude -5°02'41.06" e longitude -42°27'32.38".
+Finalidade do Uso - Consumo Animal
+Espécie Sistema de Criação Número de Cabeças
+Descrição dos usos da água
+Dessedentação do rebanho.
+JOSÉ EXEMPLO
+01/10/2026
+"""))
+    assert [f.valor for f in ex.finalidades] == ["Consumo Animal"] and ex.blocos[0].chave == "criacao_animal"
+    assert ex.descricao_usos.valor == "Dessedentação do rebanho" and ex.data_documento.valor == "01/10/2026"
+
+
+def test_ct125_correspondencia_nome_incompleto_e_letras_espacadas():
+    from ocr_requerimentos.extracao.texto import Ref, melhor_correspondencia
+
+    muni = [Ref(1, "Betânia do Piauí"), Ref(2, "Capitão Gervásio Oliveira"), Ref(3, "São Raimundo Nonato"),
+            Ref(4, "São João do Piauí"), Ref(5, "São João da Varjota")]
+    assert melhor_correspondencia("Betânia", muni) == (muni[0], 85.0)
+    assert melhor_correspondencia("CAPITÃO GERVÁSIO", muni) == (muni[1], 85.0)
+    assert melhor_correspondencia("S Ã O R A I M U N D O N O N A T O", muni)[0] is muni[2]
+    assert melhor_correspondencia("São João", muni)[0] is None  # completa dois nomes: não escolhe

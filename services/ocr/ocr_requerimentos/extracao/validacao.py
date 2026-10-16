@@ -8,6 +8,7 @@ from typing import Any, Protocol
 from rapidfuzz import fuzz
 
 from .normalizadores import (
+    AVISO_SINAL_AUSENTE,
     dentro_do_piaui,
     normalizar_coordenada,
     normalizar_cpf_cnpj,
@@ -247,7 +248,9 @@ def validar(ex: ExtracaoBruta, refs: Referencias, limiar_confianca: float = 80.0
             else:
                 cv.valido = False
                 cv.valor_normalizado = f"{c.decimal:.7f}" if c.decimal is not None else None
-            if c.avisos:
+            # o Piauí fica inteiro no Sul/Oeste: o sinal omitido (o comum em graus/minutos/segundos) não deixa
+            # dúvida, e um ponto que caia fora do estado vira pendência logo abaixo
+            if [a for a in c.avisos if a != AVISO_SINAL_AUSENTE]:
                 cv.confianca = min(cv.confianca, 70.0)
         campos[nome] = cv
     if lat is not None and lon is not None:
