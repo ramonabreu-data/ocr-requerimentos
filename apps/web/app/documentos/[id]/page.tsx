@@ -10,7 +10,7 @@ import Status from "@/components/Status";
 import TabelaDocumentos from "@/components/TabelaDocumentos";
 import Visor, { chaveCampo } from "@/components/Visor";
 import { api, type CorpoCorrecao } from "@/lib/api";
-import { ASSINATURA, coord, data, dataHora, EM_ANDAMENTO, listaDeOrigem, METODO, nivelConfianca, pct } from "@/lib/formato";
+import { ASSINATURA, coord, data, dataHora, EM_ANDAMENTO, listaDeOrigem, METODO, nivelConfianca, pct, ROTULO_STATUS } from "@/lib/formato";
 import { usePolling } from "@/lib/usePolling";
 import type { Campo, DocumentoDetalhe, Referencia, RegistroRevisao } from "@/lib/tipos";
 
@@ -101,6 +101,8 @@ export default function Conferencia() {
   const [feito, setFeito] = useState<string | null>(null);
   const [justificando, setJustificando] = useState(false);
   const [justificativa, setJustificativa] = useState("");
+  const [desconsiderando, setDesconsiderando] = useState(false);
+  const [motivo, setMotivo] = useState("");
   const [validadoAgora, setValidadoAgora] = useState<{ href: string; rotulo: string; comJustificativa: boolean } | null>(null);
   const [historico, setHistorico] = useState<RegistroRevisao[]>([]);
   const [listas, setListas] = useState<Record<string, Referencia[]>>({});
@@ -162,10 +164,34 @@ export default function Conferencia() {
   const sujo =
     Object.keys(alterados.simples).length > 0 || alterados.finalidades || alterados.irrigacao || Object.keys(alterados.detalhes).length > 0;
 
+  // correções não salvas: fechar, recarregar ou sair por endereço pede confirmação do navegador
+  useEffect(() => {
+    if (!sujo) return;
+    const avisar = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [sujo]);
+
   const selecionarNaFolha = (k: string) => {
     setAtivo(k);
     const el = entradas.current[k];
     el?.focus({ preventScroll: false });
+  };
+
+  /** Grava as alterações da tela e devolve o documento salvo, com a versão nova do requerimento. */
+  const gravarCorrecoes = async (atual: DocumentoDetalhe) => {
+    const corpo: CorpoCorrecao = { versao: atual.requerimento?.versao };
+    if (Object.keys(alterados.simples).length) corpo.campos = alterados.simples;
+    if (alterados.finalidades) corpo.finalidades = finalidades.filter((f) => f.trim());
+    if (alterados.irrigacao) corpo.irrigacao = irrigacao.filter((l) => l.sistema || l.area || l.cultura);
+    if (Object.keys(alterados.detalhes).length) corpo.detalhes = alterados.detalhes;
+    const novo = await api.corrigir(atual.uuid, corpo);
+    setDoc(novo);
+    carregarHistorico();
+    return novo;
   };
 
   const salvar = async () => {
@@ -173,19 +199,72 @@ export default function Conferencia() {
     setSalvando(true);
     setFalha(null);
     setFeito(null);
-    const corpo: CorpoCorrecao = { versao: doc.requerimento?.versao };
-    if (Object.keys(alterados.simples).length) corpo.campos = alterados.simples;
-    if (alterados.finalidades) corpo.finalidades = finalidades.filter((f) => f.trim());
-    if (alterados.irrigacao) corpo.irrigacao = irrigacao.filter((l) => l.sistema || l.area || l.cultura);
-    if (Object.keys(alterados.detalhes).length) corpo.detalhes = alterados.detalhes;
     try {
-      const novo = await api.corrigir(doc.uuid, corpo);
-      setDoc(novo);
+      const novo = await gravarCorrecoes(doc);
       setFeito(
         novo.requerimento?.pendencias.length
           ? "Correções salvas. Ainda há pendências listadas acima."
           : "Correções salvas. O documento está sem pendências e pode ser validado.",
       );
+    } catch (e) {
+      setFalha(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  // com alterações na tela, grava antes e valida com a versão que a gravação devolveu (não a do estado,
+  // que só atualiza no próximo render); se ainda restarem pendências sem justificativa, pede a justificativa
+  const validar = async (forcar = false) => {
+    if (!doc) return;
+    setSalvando(true);
+    setFalha(null);
+    setFeito(null);
+    try {
+      const atual = sujo ? await gravarCorrecoes(doc) : doc;
+      const comPendencias = !!atual.requerimento?.pendencias.length;
+      if (comPendencias && !forcar) {
+        setFeito("Correções salvas. Ainda há pendências: justifique para validar.");
+        setJustificando(true);
+        return;
+      }
+      // as correções podem ter resolvido as pendências: aí não há o que justificar
+      const comJustificativa = forcar && comPendencias;
+      const novo = await api.validar(atual.uuid, comJustificativa, comJustificativa ? justificativa : undefined, atual.requerimento?.versao);
+      setDoc(novo);
+      setJustificando(false);
+      carregarHistorico();
+      const lista = listaDeOrigem(new URLSearchParams(window.location.search).get("de"));
+      setValidadoAgora({ ...lista, comJustificativa });
+    } catch (e) {
+      setFalha(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const descartar = () => {
+    if (!inicial) return;
+    setSimples(inicial.simples);
+    setFinalidades(inicial.finalidades);
+    setIrrigacao(inicial.irrigacao);
+    setDetalhes(inicial.detalhes);
+    setItensDet(inicial.itens);
+  };
+
+  // sai das filas sem validar e sem ir ao SIGA; as alterações não salvas da tela são descartadas
+  const desconsiderar = async () => {
+    if (!doc) return;
+    setSalvando(true);
+    setFalha(null);
+    setFeito(null);
+    try {
+      const novo = await api.desconsiderar(doc.uuid, motivo.trim());
+      descartar();
+      setDoc(novo);
+      setDesconsiderando(false);
+      setJustificando(false);
+      setMotivo("");
       carregarHistorico();
     } catch (e) {
       setFalha(e instanceof Error ? e.message : String(e));
@@ -194,17 +273,14 @@ export default function Conferencia() {
     }
   };
 
-  const validar = async (forcar = false) => {
+  const reconsiderar = async () => {
     if (!doc) return;
     setSalvando(true);
     setFalha(null);
     try {
-      const novo = await api.validar(doc.uuid, forcar, forcar ? justificativa : undefined, doc.requerimento?.versao);
-      setDoc(novo);
-      setJustificando(false);
+      await api.reconsiderar(doc.uuid);
+      recarregar();
       carregarHistorico();
-      const lista = listaDeOrigem(new URLSearchParams(window.location.search).get("de"));
-      setValidadoAgora({ ...lista, comJustificativa: forcar });
     } catch (e) {
       setFalha(e instanceof Error ? e.message : String(e));
     } finally {
@@ -265,11 +341,69 @@ export default function Conferencia() {
               Baixar JSON
             </a>
           ))}
-        {!EM_ANDAMENTO.has(doc.status) && doc.status !== "validado" && (
+        {!EM_ANDAMENTO.has(doc.status) && doc.status !== "validado" && doc.status !== "desconsiderado" && (
           <button className="botao botao--secundario" onClick={reprocessar}>
             Ler de novo
           </button>
         )}
+      </div>
+    </div>
+  );
+
+  const desconsiderado = doc.status === "desconsiderado";
+  // o motivo é o da última desconsideração do histórico
+  const ultimaDesconsideracao = historico
+    .filter((h) => h.campo === "__desconsideracao__")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+
+  const avisoFalha = falha && (
+    <div className="aviso aviso--erro" role="alert" style={{ marginTop: "1rem" }}>
+      {falha}
+    </div>
+  );
+
+  // âmbar (sem role="status", que o deixaria azul de informação): o documento está fora do fluxo
+  const avisoDesconsiderado = (
+    <div className="aviso">
+      <strong>Documento desconsiderado</strong> — não será validado nem enviado ao SIGA.
+      {ultimaDesconsideracao?.valor_novo && (
+        <p style={{ marginTop: "0.4rem" }}>
+          Motivo: {ultimaDesconsideracao.valor_novo}
+          <span className="discreto"> ({dataHora(ultimaDesconsideracao.created_at)})</span>
+        </p>
+      )}
+      <div className="acoes" style={{ marginTop: "0.6rem" }}>
+        <button className="botao botao--secundario botao--pequeno" onClick={reconsiderar} disabled={salvando}>
+          {salvando ? "Reconsiderando…" : "Reconsiderar"}
+        </button>
+        <span className="dica" style={{ margin: 0 }}>O documento volta para a revisão.</span>
+      </div>
+    </div>
+  );
+
+  const painelDesconsiderar = desconsiderando && (
+    <div className="grupo campo">
+      <label htmlFor="motivo">Motivo</label>
+      <textarea
+        id="motivo"
+        rows={3}
+        autoFocus
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+        placeholder="Ex.: não é requerimento de outorga (formulário de licenciamento); arquivo repetido; folha ilegível."
+      />
+      <p className="dica">
+        O documento sai das filas de revisão e não será validado nem enviado ao SIGA.{" "}
+        {sujo && "As alterações feitas na tela serão descartadas, sem gravar. "}
+        O motivo fica no histórico, e dá para reconsiderar depois.
+      </p>
+      <div className="acoes" style={{ marginTop: "0.6rem" }}>
+        <button className="botao botao--texto" onClick={() => setDesconsiderando(false)}>
+          Cancelar
+        </button>
+        <button className="botao" disabled={!motivo.trim() || salvando} onClick={desconsiderar}>
+          Desconsiderar
+        </button>
       </div>
     </div>
   );
@@ -280,7 +414,8 @@ export default function Conferencia() {
         {cabecalho}
         <div className="bloco carregando" role="status">
           {doc.status === "recebido" ? "Na fila de leitura. Esta página atualiza sozinha." : "Lendo o documento. Leva alguns segundos por página."}
-          {doc.validar_ao_ler && " Foi enviado como já conferido: será validado assim que a leitura terminar."}
+          {doc.validar_ao_ler &&
+            " Foi enviado como já conferido: será validado assim que a leitura terminar, salvo se a confiança da leitura ficar baixa."}
         </div>
       </div>
     );
@@ -292,8 +427,32 @@ export default function Conferencia() {
         <div className="aviso aviso--erro" role="alert">
           <strong>Não foi possível ler este arquivo.</strong> {doc.erro}
           {doc.validar_ao_ler && " Como foi enviado como já conferido, será validado quando for lido."}
-          <p style={{ marginTop: "0.4rem" }}>Confira se o arquivo abre normalmente e use “Ler de novo”, ou envie uma digitalização melhor.</p>
+          <p style={{ marginTop: "0.4rem" }}>
+            Confira se o arquivo abre normalmente e use “Ler de novo”, ou envie uma digitalização melhor. Se o arquivo não é um
+            requerimento (por exemplo, uma planilha que veio no ZIP), desconsidere-o.
+          </p>
         </div>
+        {desconsiderando ? (
+          <div style={{ marginTop: "1rem" }}>{painelDesconsiderar}</div>
+        ) : (
+          <div className="acoes" style={{ marginTop: "1rem" }}>
+            <button className="botao botao--secundario" onClick={() => setDesconsiderando(true)}>
+              Desconsiderar documento
+            </button>
+          </div>
+        )}
+        {avisoFalha}
+      </div>
+    );
+
+  // desconsiderado sem leitura (veio do erro): não há formulário para mostrar
+  if (desconsiderado && !doc.requerimento)
+    return (
+      <div className="pagina">
+        {cabecalho}
+        {avisoDesconsiderado}
+        {doc.erro && <p className="dica">Erro da leitura: {doc.erro}</p>}
+        {avisoFalha}
       </div>
     );
 
@@ -311,6 +470,8 @@ export default function Conferencia() {
 
   const req = doc.requerimento!;
   const validado = doc.status === "validado";
+  // validado ou desconsiderado: o formulário só mostra o que foi lido
+  const somenteLeitura = validado || desconsiderado;
 
   const entradaCampo = (nome: string, opcoes?: { lista?: string; mono?: boolean; area?: boolean; inteiro?: boolean; dica?: string }) => {
     const c = porChave[`${nome}:`];
@@ -326,7 +487,7 @@ export default function Conferencia() {
     const props = {
       id: id_,
       value: simples[nome] ?? "",
-      readOnly: validado,
+      readOnly: somenteLeitura,
       className: opcoes?.mono ? "mono" : undefined,
       onFocus: () => setAtivo(k),
       "aria-invalid": c?.valido === false || undefined,
@@ -421,6 +582,14 @@ export default function Conferencia() {
           <Visor uuid={doc.uuid} paginas={doc.paginas_lidas} campos={campos} ativo={ativo} onSelecionar={selecionarNaFolha} />
 
           <div className="formulario">
+            {desconsiderado && avisoDesconsiderado}
+            {/* leitura abaixo do limiar de confiança: não é validada sozinha, nem se enviada como já conferida */}
+            {doc.conferencia_obrigatoria && !somenteLeitura && (
+              <div className="aviso aviso--erro">
+                <strong>Conferência obrigatória</strong> — a leitura ficou com {pct(doc.confianca_geral ?? req.confianca_geral)}{" "}
+                de confiança. Confira cada campo com a folha antes de validar.
+              </div>
+            )}
             {validado ? (
               <div className="aviso aviso--ok" role="status">
                 {req.validacao_modo === "envio"
@@ -428,7 +597,7 @@ export default function Conferencia() {
                   : `Validado em ${dataHora(req.validado_em)}.`}{" "}
                 Para alterar algum campo, corrija e salve: o documento volta para conferência.
               </div>
-            ) : req.pendencias.length ? (
+            ) : desconsiderado ? null : req.pendencias.length ? (
               <div className="aviso" role="status">
                 <strong>
                   {req.pendencias.length === 1 ? "1 ponto para conferir" : `${req.pendencias.length} pontos para conferir`}
@@ -488,7 +657,7 @@ export default function Conferencia() {
                           aria-label={`Finalidade ${i + 1}`}
                           list="lista-finalidades"
                           value={f}
-                          readOnly={validado}
+                          readOnly={somenteLeitura}
                           ref={(el) => {
                             entradas.current[k] = el;
                           }}
@@ -497,7 +666,7 @@ export default function Conferencia() {
                         />
                         {c?.mensagem && <p className={`mensagem${c.valido === false ? " mensagem--erro" : ""}`}>{c.mensagem}</p>}
                       </div>
-                      {!validado && (
+                      {!somenteLeitura && (
                         <button className="botao botao--texto" onClick={() => setFinalidades((l) => l.filter((_, j) => j !== i))} aria-label={`Remover finalidade ${i + 1}`}>
                           Remover
                         </button>
@@ -505,7 +674,7 @@ export default function Conferencia() {
                     </div>
                   );
                 })}
-                {!validado && (
+                {!somenteLeitura && (
                   <div>
                     <button className="botao botao--secundario botao--pequeno" onClick={() => setFinalidades((l) => [...l, ""])}>
                       Adicionar finalidade
@@ -527,7 +696,7 @@ export default function Conferencia() {
                     porChave={porChave}
                     valores={detalhes}
                     itens={itensDet[fin] ?? []}
-                    validado={validado}
+                    validado={somenteLeitura}
                     ativo={ativo}
                     entradas={entradas}
                     onAtivar={setAtivo}
@@ -574,7 +743,7 @@ export default function Conferencia() {
                                 className={sub === "area" ? "mono" : undefined}
                                 inputMode={sub === "area" ? "decimal" : undefined}
                                 value={linha[sub]}
-                                readOnly={validado}
+                                readOnly={somenteLeitura}
                                 title={c?.mensagem ?? undefined}
                                 ref={(el) => {
                                   entradas.current[k] = el;
@@ -594,7 +763,7 @@ export default function Conferencia() {
                             <td className="area" data-rotulo="Área (ha)">{celula("area")}</td>
                             <td data-rotulo="Cultura">{celula("cultura", "lista-culturas")}</td>
                             <td className="remover">
-                              {!validado && (
+                              {!somenteLeitura && (
                                 <button className="botao botao--texto botao--pequeno" onClick={() => setIrrigacao((l) => l.filter((_, j) => j !== i))} aria-label={`Remover linha ${ordem}`}>
                                   Remover
                                 </button>
@@ -606,7 +775,7 @@ export default function Conferencia() {
                     </tbody>
                   </table>
                 </div>
-                {!validado && (
+                {!somenteLeitura && (
                   <button
                     className="botao botao--secundario botao--pequeno"
                     style={{ marginTop: "0.6rem" }}
@@ -664,6 +833,19 @@ export default function Conferencia() {
                         <>
                           validado com pendências. Justificativa: <ins>{h.valor_novo}</ins>
                         </>
+                      ) : h.campo === "__reprocessamento__" ? (
+                        <>lido de novo; as correções manuais foram reaplicadas.</>
+                      ) : h.campo === "__desconsideracao__" ? (
+                        <>
+                          desconsiderado. Motivo: <ins>{h.valor_novo}</ins>
+                        </>
+                      ) : h.campo === "__reconsideracao__" ? (
+                        <>
+                          reconsiderado:{" "}
+                          {h.valor_novo === "erro"
+                            ? "voltou para o erro de leitura."
+                            : `voltou para a revisão (${(ROTULO_STATUS[h.valor_novo ?? ""] ?? h.valor_novo ?? "").toLowerCase()}).`}
+                        </>
                       ) : (
                         <>
                           <strong>{rotuloHistorico(h.campo)}</strong>: <del>{h.valor_anterior || "vazio"}</del> para{" "}
@@ -687,62 +869,72 @@ export default function Conferencia() {
                   onChange={(e) => setJustificativa(e.target.value)}
                   placeholder="Ex.: coordenada conferida em vistoria; o ponto fica na divisa entre municípios."
                 />
-                <p className="dica">A justificativa fica registrada no histórico do documento.</p>
+                <p className="dica">
+                  A justificativa fica registrada no histórico do documento.
+                  {sujo && " As alterações da tela são salvas antes de validar."}
+                </p>
               </div>
             )}
+            {painelDesconsiderar}
 
-            <div className="barra-acoes">
-              {falha && (
-                <div className="aviso aviso--erro" role="alert" style={{ width: "100%" }}>
-                  {falha}
-                </div>
-              )}
-              {feito && !falha && (
-                <div className="aviso aviso--ok" role="status" style={{ width: "100%" }}>
-                  {feito}
-                </div>
-              )}
-              <button className="botao" onClick={salvar} disabled={!sujo || salvando}>
-                {salvando && sujo ? "Salvando…" : "Salvar correções"}
-              </button>
-              {sujo && (
+            {desconsiderado ? (
+              avisoFalha
+            ) : (
+              <div className="barra-acoes">
+                {falha && (
+                  <div className="aviso aviso--erro" role="alert" style={{ width: "100%" }}>
+                    {falha}
+                  </div>
+                )}
+                {feito && !falha && (
+                  <div className="aviso aviso--ok" role="status" style={{ width: "100%" }}>
+                    {feito}
+                  </div>
+                )}
+                <button className="botao" onClick={salvar} disabled={!sujo || salvando}>
+                  {salvando && sujo ? "Salvando…" : "Salvar correções"}
+                </button>
                 <button
                   className="botao botao--texto"
+                  disabled={!sujo || salvando}
                   onClick={() => {
-                    if (!inicial) return;
-                    setSimples(inicial.simples);
-                    setFinalidades(inicial.finalidades);
-                    setIrrigacao(inicial.irrigacao);
-                    setDetalhes(inicial.detalhes);
-                    setItensDet(inicial.itens);
+                    if (window.confirm("Descartar as alterações feitas na tela? Nada será gravado.")) descartar();
                   }}
                 >
-                  Desfazer alterações
+                  Descartar alterações
                 </button>
-              )}
-              <span className="espaco" />
-              {!validado &&
-                (justificando ? (
-                  <>
-                    <button className="botao botao--texto" onClick={() => setJustificando(false)}>
-                      Cancelar
-                    </button>
-                    <button className="botao" disabled={!justificativa.trim() || salvando} onClick={() => validar(true)}>
-                      Validar com justificativa
-                    </button>
-                  </>
-                ) : (
+                <span className="espaco" />
+                {!validado && !desconsiderando && !justificando && (
                   <button
-                    className="botao"
-                    disabled={sujo || salvando}
-                    title={sujo ? "Salve as correções antes de validar" : undefined}
-                    onClick={() => (req.pendencias.length ? setJustificando(true) : validar(false))}
+                    className="botao botao--secundario"
+                    disabled={salvando}
+                    onClick={() => setDesconsiderando(true)}
                   >
-                    {req.pendencias.length ? "Validar mesmo assim" : "Validar"}
+                    Desconsiderar documento
                   </button>
-                ))}
-            </div>
-            {sujo && !validado && <p className="dica">Salve as correções antes de validar.</p>}
+                )}
+                {!validado &&
+                  !desconsiderando &&
+                  (justificando ? (
+                    <>
+                      <button className="botao botao--texto" onClick={() => setJustificando(false)}>
+                        Cancelar
+                      </button>
+                      <button className="botao" disabled={!justificativa.trim() || salvando} onClick={() => validar(true)}>
+                        {sujo ? "Salvar e validar com justificativa" : "Validar com justificativa"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="botao"
+                      disabled={salvando}
+                      onClick={() => (sujo || !req.pendencias.length ? validar(false) : setJustificando(true))}
+                    >
+                      {sujo ? "Salvar e validar" : req.pendencias.length ? "Validar mesmo assim" : "Validar"}
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

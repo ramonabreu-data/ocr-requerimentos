@@ -120,6 +120,53 @@ def test_ct56_lote_ja_conferido_com_pdf_dividido(cliente, pdf_exemplo):
     assert lote["validados"] == 2
 
 
+def test_ct57_lote_ja_conferido_com_leitura_fraca(cliente, pdf_exemplo):
+    import pymupdf
+
+    fraco = pymupdf.open()
+    fraco.new_page().insert_text((72, 72), "REQUERIMENTO\nTexto sem os dados do formulário.\n01/10/2026")
+    r = cliente.post("/lotes", files=[("arquivos", ("fraco.pdf", fraco.tobytes(), "application/pdf")),
+                                      ("arquivos", ("bom.pdf", pdf_exemplo, "application/pdf"))],
+                     data={"validar_ao_ler": "true"})
+    assert r.status_code == 201, r.text
+    lote = cliente.get(f"/lotes/{r.json()['uuid']}").json()
+    docs = {d["nome_original"]: d for d in lote["documentos"]}
+    # abaixo de 50%: não é validado, mesmo enviado como já conferido; o outro segue validado no envio
+    assert docs["fraco.pdf"]["status"] == "revisao" and docs["fraco.pdf"]["conferencia_obrigatoria"] is True
+    assert docs["bom.pdf"]["status"] == "validado" and docs["bom.pdf"]["conferencia_obrigatoria"] is False
+    assert lote["conferencia_obrigatoria"] == 1
+    d = _detalhe(cliente, docs["fraco.pdf"]["uuid"])
+    assert d["conferencia_obrigatoria"] and "conferência obrigatória" in d["requerimento"]["avisos"][-1]
+    est = cliente.get("/estatisticas").json()
+    assert est["conferencia_obrigatoria"] == 1 and est["limiar_conferencia_obrigatoria"] == 50
+    fila = cliente.get("/revisao", params={"obrigatoria": "true"}).json()
+    assert [i["uuid"] for i in fila["itens"]] == [d["uuid"]]
+    assert cliente.get("/documentos", params={"obrigatoria": "true"}).json()["total"] == 1
+    # validado por uma pessoa na conferência, sai da aba
+    r = cliente.post(f"/documentos/{d['uuid']}/validar", json={"forcar": True, "justificativa": "conferido na folha"})
+    assert r.status_code == 200 and cliente.get("/estatisticas").json()["conferencia_obrigatoria"] == 0
+
+
+def test_ct58_desconsiderar_pela_api(cliente, pdf_exemplo):
+    uid = _enviar(cliente, pdf_exemplo).json()["uuid"]
+    assert cliente.post(f"/documentos/{uid}/desconsiderar", json={"motivo": ""}).status_code == 409
+    r = cliente.post(f"/documentos/{uid}/desconsiderar", json={"motivo": "arquivo repetido"}, headers={"X-Usuario-Id": "9"})
+    assert r.status_code == 200 and r.json()["status"] == "desconsiderado"
+    # nada mais grava enquanto estiver desconsiderado
+    assert cliente.post(f"/documentos/{uid}/validar", json={"forcar": True, "justificativa": "x"}).status_code == 409
+    assert cliente.patch(f"/documentos/{uid}/correcoes", json={"campos": {"localidade": "X"}}).status_code == 409
+    assert cliente.post(f"/documentos/{uid}/reprocessar").status_code == 409
+    assert uid not in cliente.get("/siga/requerimentos.json").text  # não vai para o consolidado do SIGA
+    hist = cliente.get(f"/documentos/{uid}/revisoes").json()
+    assert hist[-1]["campo"] == "__desconsideracao__" and hist[-1]["valor_novo"] == "arquivo repetido"
+    assert hist[-1]["usuario_id"] == 9
+    assert uid not in [d["uuid"] for d in cliente.get("/revisao").json()["itens"]]
+    r = cliente.post(f"/documentos/{uid}/reconsiderar")
+    assert r.status_code == 200 and r.json()["status"] == "revisao"
+    assert cliente.get(f"/documentos/{uid}/revisoes").json()[-1]["campo"] == "__reconsideracao__"
+    assert cliente.post(f"/documentos/{uid}/reconsiderar").status_code == 409
+
+
 def test_ct45_ponto_fora_do_municipio(cliente):
     # polígono fictício de Altos no stub vai de -42,75 a -42,25 de longitude
     pdf = F.pdf_requerimento(F.DadosReq(longitude="-42°10'00\""))

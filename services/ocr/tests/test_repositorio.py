@@ -260,6 +260,71 @@ def test_ct116_validar_no_envio(repo):
     assert not P.validar_no_envio(com_erro) and com_erro.validar_ao_ler
 
 
+def test_ct119_conferencia_obrigatoria_nao_valida_no_envio(repo):
+    lote = str(_uuid.uuid4())
+    d = _doc(lote=lote, status="extraido")
+    d.validar_ao_ler = True
+    d.requerimento.confianca_geral = 32.5
+    assert P.marcar_conferencia_obrigatoria(d)
+    assert d.status == "revisao"  # mesmo sem pendências, não fica como "pronto para validar"
+    assert not P.validar_no_envio(d)
+    assert d.status == "revisao" and d.requerimento.validacao.situacao == "pendente"
+    assert d.validar_ao_ler is False and "conferência obrigatória" in d.requerimento.avisos[-1]
+    _salvar(repo, d)
+    acima = _doc(lote=lote, status="extraido")
+    acima.requerimento.confianca_geral = 50
+    assert not P.marcar_conferencia_obrigatoria(acima) and acima.status == "extraido"
+    _salvar(repo, acima)
+    total, itens = repo.consultar(obrigatoria=True)
+    assert total == 1 and itens[0]["uuid"] == d.uuid and itens[0]["conferencia_obrigatoria"] is True
+    assert repo.total_obrigatoria() == 1 and repo.obrigatoria_por_lote([lote, "outro"]) == {lote: 1, "outro": 0}
+    # validado na conferência: sai da aba (a marca fica como registro da leitura)
+    with repo.travar(d.uuid):
+        v = repo.obter(d.uuid)
+        P.validar_documento(v, 3)
+        repo.salvar(v)
+    assert repo.total_obrigatoria() == 0 and repo.consultar(obrigatoria=True)[0] == 0
+    assert repo.obter(d.uuid).conferencia_obrigatoria
+    # o índice refeito do bucket dá o mesmo resultado
+    _salvar(repo, _doc(lote=lote, status="revisao").model_copy(update={"conferencia_obrigatoria": True}))
+    repo.reconstruir_indice()
+    assert repo.total_obrigatoria() == 1
+
+
+def test_ct126_desconsiderar_e_reconsiderar(repo):
+    lote = str(_uuid.uuid4())
+    d = _doc(lote=lote, status="revisao")
+    d.conferencia_obrigatoria, d.validar_ao_ler = True, True
+    d.requerimento.pendencias = ["Município: não encontrado"]
+    _salvar(repo, d)
+    assert repo.total_obrigatoria() == 1
+    with pytest.raises(ValueError):
+        P.desconsiderar_documento(d, 5, "  ")  # motivo obrigatório
+    P.desconsiderar_documento(d, 5, "formulário de licenciamento, não é outorga")
+    assert d.status == "desconsiderado" and d.validar_ao_ler is False
+    h = d.historico_de_revisoes[-1]
+    assert (h.tipo, h.valor_anterior, h.valor_novo, h.usuario_id) == (
+        "desconsideracao", "revisao", "formulário de licenciamento, não é outorga", 5)
+    _salvar(repo, d)
+    # sai da revisão e da conferência obrigatória; o lote conta como processado
+    assert repo.total_obrigatoria() == 0 and repo.consultar(status=["revisao"])[0] == 0
+    assert repo.consultar(status=["desconsiderado"])[0] == 1
+    assert repo.contagem_lote(lote) == {"desconsiderado": 1} and repo.finalizado_em(lote)
+    with pytest.raises(ValueError):
+        P.desconsiderar_documento(d, 5, "de novo")
+    P.reconsiderar_documento(d, 6)
+    assert d.status == "revisao" and d.historico_de_revisoes[-1].tipo == "reconsideracao"
+    _salvar(repo, d)
+    assert repo.total_obrigatoria() == 1
+    validado = _doc(status="validado")
+    with pytest.raises(PermissionError):
+        P.desconsiderar_documento(validado, 5, "motivo")
+    sem_leitura = _doc(status="erro").model_copy(update={"requerimento": None})
+    P.desconsiderar_documento(sem_leitura, 5, "CSV dentro do ZIP")
+    P.reconsiderar_documento(sem_leitura, 5)
+    assert sem_leitura.status == "erro"
+
+
 def test_ct117_numero_de_registro(repo):
     ano = datetime.now(P.FUSO).year
     registrar = lambda conteudo, **kw: P.registrar_documento(conteudo, "a.pdf", "application/pdf", repo=repo,  # noqa: E731

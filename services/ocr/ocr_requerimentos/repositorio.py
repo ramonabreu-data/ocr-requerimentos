@@ -44,7 +44,8 @@ from .modelos import (
 log = logging.getLogger(__name__)
 
 PENDENTES = ("recebido", "processando")
-FINAIS = ("extraido", "revisao", "validado", "erro")
+FINAIS = ("extraido", "revisao", "validado", "erro", "desconsiderado")
+A_CONFERIR = ("extraido", "revisao")  # lidos e ainda não validados
 SEPARADOR = "\x1f"  # entre os campos do texto de busca, para um termo não casar entre dois campos
 SEPARADOR_BUSCA = "\x1e"  # entre as partes da linha compacta de busca (ver _linha_busca)
 CAMPOS_BUSCA = ("_requerente", "_busca", "_cpf", "data_documento")
@@ -89,6 +90,7 @@ def resumo_documento(d: Documento) -> dict[str, Any]:
         "data_documento": r.data_documento.isoformat() if r and r.data_documento else None,
         "validado_em": _iso(r.validacao.validado_em) if r else None,
         "confianca_geral": r.confianca_geral if r else None,
+        "conferencia_obrigatoria": d.conferencia_obrigatoria,
         "pendencias": list(r.pendencias) if r else [],
         "created_at": _iso(d.criado_em),
         "updated_at": _iso(d.atualizado_em),
@@ -305,6 +307,11 @@ class Repositorio:
             pipe.zadd(k("docs"), {u: ts})
         else:
             pipe.zrem(k("docs"), u)
+        # conferências obrigatórias ainda não feitas (a aba da revisão e os alertas contam daqui)
+        if novo["conferencia_obrigatoria"] and novo["status"] in A_CONFERIR:
+            pipe.zadd(k("obrigatoria"), {u: ts})
+        else:
+            pipe.zrem(k("obrigatoria"), u)
         for campo, nome in (("procedimento", "proc"), ("municipio", "mun")):
             va = antigo.get(campo) if antigo and antigo["status"] != "dividido" else None
             vn = novo.get(campo) if listavel else None
@@ -348,14 +355,16 @@ class Repositorio:
         ts_de: float | None = None,
         ts_ate: float | None = None,
         filtro: Callable[[dict[str, Any]], bool] | None = None,
+        obrigatoria: bool = False,
         pagina: int = 1,
         tamanho: int = 25,
         crescente: bool = False,
         bloco: int = 2000,
     ) -> tuple[int, list[dict[str, Any]]]:
-        """Documentos (sem os divididos) por data de gravação. Situação, procedimento, município e período de
-        gravação saem direto dos conjuntos do índice; `filtro` (texto, data do documento) percorre só os
-        candidatos que sobraram, em blocos, recebendo {_requerente, _busca, _cpf, data_documento}."""
+        """Documentos (sem os divididos) por data de gravação. Situação, procedimento, município, conferência
+        obrigatória pendente e período de gravação saem direto dos conjuntos do índice; `filtro` (texto, data do
+        documento) percorre só os candidatos que sobraram, em blocos, recebendo {_requerente, _busca, _cpf,
+        data_documento}."""
         k = self._k
         temporarios: list[str] = []
 
@@ -376,7 +385,8 @@ class Repositorio:
                     self.r.zunionstore(base, [k("status", s) for s in status])
             else:
                 base = k("docs")
-            extras = ([k("proc", procedimento)] if procedimento else []) + ([k("mun", municipio)] if municipio else [])
+            extras = (([k("proc", procedimento)] if procedimento else []) + ([k("mun", municipio)] if municipio else [])
+                      + ([k("obrigatoria")] if obrigatoria else []))
             if extras:
                 inter = temporario()
                 self.r.zinterstore(inter, {base: 1, **{e: 0 for e in extras}})
@@ -421,6 +431,21 @@ class Repositorio:
         for s in STATUS_DOCUMENTO:
             pipe.zcard(self._k("status", s))
         return {s: n for s, n in zip(STATUS_DOCUMENTO, pipe.execute()) if n}
+
+    def total_obrigatoria(self) -> int:
+        """Conferências obrigatórias ainda não feitas."""
+        return self.r.zcard(self._k("obrigatoria"))
+
+    def obrigatoria_por_lote(self, lotes: list[str]) -> dict[str, int]:
+        """Conferências obrigatórias ainda não feitas em cada lote."""
+        if not lotes or not self.total_obrigatoria():
+            return {u: 0 for u in lotes}
+        temporarios = [self._k("tmp", _uuid.uuid4().hex) for _ in lotes]
+        pipe = self.r.pipeline()
+        for lote, tmp in zip(lotes, temporarios):
+            pipe.zinterstore(tmp, [self._k("lote", lote, "docs"), self._k("obrigatoria")])  # devolve o tamanho
+        pipe.delete(*temporarios)
+        return dict(zip(lotes, pipe.execute()[:-1]))
 
     def opcoes(self, nome: str) -> list[dict[str, Any]]:
         """Valores de procedimento ('proc') ou município ('mun') presentes, com a quantidade de cada."""

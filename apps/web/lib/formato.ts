@@ -6,6 +6,7 @@ export const ROTULO_STATUS: Record<string, string> = {
   validado: "Validado",
   erro: "Erro",
   dividido: "Dividido em partes",
+  desconsiderado: "Desconsiderado",
   pendente: "Pendente",
   concluido: "Concluído",
   concluido_com_erros: "Concluído com erros",

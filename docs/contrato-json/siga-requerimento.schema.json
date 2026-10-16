@@ -581,7 +581,7 @@
     },
     "Revisao": {
       "additionalProperties": false,
-      "description": "Uma entrada do histórico. `tipo`:\n- correcao: o revisor mudou `campo` de `valor_anterior` para `valor_novo`;\n- validacao_com_pendencias: validado mesmo com pendências; `valor_anterior` = pendências na hora,\n  `valor_novo` = justificativa;\n- reprocessamento: o documento foi lido de novo e as correções manuais foram reaplicadas.",
+      "description": "Uma entrada do histórico. `tipo`:\n- correcao: o revisor mudou `campo` de `valor_anterior` para `valor_novo`;\n- validacao_com_pendencias: validado mesmo com pendências; `valor_anterior` = pendências na hora,\n  `valor_novo` = justificativa;\n- reprocessamento: o documento foi lido de novo e as correções manuais foram reaplicadas;\n- desconsideracao: descartado na revisão; `valor_anterior` = situação que tinha, `valor_novo` = motivo;\n- reconsideracao: voltou para a revisão depois de desconsiderado; `valor_novo` = situação de volta.",
       "properties": {
         "em": {
           "format": "date-time",
@@ -604,7 +604,9 @@
           "enum": [
             "correcao",
             "validacao_com_pendencias",
-            "reprocessamento"
+            "reprocessamento",
+            "desconsideracao",
+            "reconsideracao"
           ],
           "title": "Tipo",
           "type": "string"

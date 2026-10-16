@@ -346,6 +346,12 @@ body:has(.pagina--larga) :is(.governo__interno, .topo__interno, .nav__interno, .
   font-variant-numeric: tabular-nums;
 }
 
+/* conferência obrigatória (leitura abaixo do limiar de confiança): vermelho cheio, como o erro */
+.contador--alerta {
+  background: var(--erro);
+  color: #fff;
+}
+
 /* ---------------------------------------------------------------- trilha */
 .trilha {
   max-width: 1200px;
@@ -570,6 +576,12 @@ body:has(.pagina--larga) :is(.governo__interno, .topo__interno, .nav__interno, .
 .status--erro {
   background: var(--erro);
   color: #fff;
+}
+
+/* desconsiderado: fora do semáforo, apagado */
+.status--desconsiderado {
+  background: var(--linha-suave);
+  color: var(--tinta-2);
 }
 
 .status--processando,
@@ -813,6 +825,11 @@ body:has(.pagina--larga) :is(.governo__interno, .topo__interno, .nav__interno, .
 .progresso .p-validado,
 .legenda-progresso .p-validado {
   background: var(--verde);
+}
+
+.progresso .p-desconsiderado,
+.legenda-progresso .p-desconsiderado {
+  background: #8a96a8;
 }
 
 .legenda-progresso {
@@ -1529,6 +1546,17 @@ details[open] > summary .json-id {
   border-radius: var(--r-pilula);
   padding: 0.05rem 0.55rem;
   font-weight: 700;
+}
+
+/* marca do documento com conferência obrigatória, abaixo da situação na tabela */
+.selo--alerta {
+  display: block;
+  width: max-content;
+  margin-top: 0.3rem;
+  white-space: nowrap;
+  background: var(--erro-fundo);
+  color: var(--erro);
+  border: 1px solid var(--erro-borda);
 }
 
 .irrigacao {

@@ -97,8 +97,20 @@ export const api = {
     pedir<DocumentoDetalhe>(`/documentos/${uuid}/correcoes`, json(corpo, "PATCH")),
   validar: (uuid: string, forcar = false, justificativa?: string, versao?: number) =>
     pedir<DocumentoDetalhe>(`/documentos/${uuid}/validar`, json({ forcar, justificativa, versao })),
+  /** tira o documento das filas: não é validado nem vai ao SIGA; o motivo fica no histórico */
+  desconsiderar: (uuid: string, motivo: string) =>
+    pedir<DocumentoDetalhe>(`/documentos/${uuid}/desconsiderar`, json({ motivo })),
+  /** desfaz o desconsiderar: volta para a revisão (ou para o erro, se nunca foi lido) */
+  reconsiderar: (uuid: string) => pedir<DocumentoDetalhe>(`/documentos/${uuid}/reconsiderar`, { method: "POST" }),
   revisoes: (uuid: string) => pedir<RegistroRevisao[]>(`/documentos/${uuid}/revisoes`),
   referencias: (tipo: string) => pedir<Referencia[]>(`/referencias/${tipo}`),
   filtros: () => pedir<OpcoesFiltro>("/filtros"),
-  estatisticas: () => pedir<{ por_status: Record<string, number>; lotes: number }>("/estatisticas"),
+  /** conferencia_obrigatoria: pendentes abaixo do limiar de confiança (limiar_conferencia_obrigatoria, em %) */
+  estatisticas: () =>
+    pedir<{
+      por_status: Record<string, number>;
+      lotes: number;
+      conferencia_obrigatoria: number;
+      limiar_conferencia_obrigatoria: number;
+    }>("/estatisticas"),
 };

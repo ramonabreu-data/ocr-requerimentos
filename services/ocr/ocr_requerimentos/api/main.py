@@ -119,6 +119,7 @@ def detalhe_documento(d: Documento) -> dict[str, Any]:
     out["processo_id"] = d.qr_code.processo_id if d.qr_code else None
     out["versao_pipeline"] = d.leitura.versao_pipeline
     out["validar_ao_ler"] = d.validar_ao_ler
+    out["conferencia_obrigatoria"] = d.conferencia_obrigatoria
     out["paginas_lidas"] = [
         {"numero": p.numero, "largura": p.largura, "altura": p.altura, "metodo": p.metodo, "motor_ocr": p.motor_ocr,
          "confianca_media": p.confianca_media, "angulo_correcao": p.angulo_correcao, "tem_imagem": bool(p.imagem_chave)}
@@ -171,7 +172,8 @@ def resumo_lote(l: Lote) -> dict[str, Any]:
         "status": "processando" if pendentes else ("concluido_com_erros" if com_erro else "concluido"),
         "total": sum(n for s, n in cont.items() if s != "dividido"),
         "processados": sum(cont.get(s, 0) for s in FINAIS), "em_revisao": cont.get("revisao", 0),
-        "validados": cont.get("validado", 0), "com_erro": com_erro,
+        "validados": cont.get("validado", 0), "com_erro": com_erro, "desconsiderados": cont.get("desconsiderado", 0),
+        "conferencia_obrigatoria": repo.obrigatoria_por_lote([l.uuid])[l.uuid],
         "created_at": _iso(l.criado_em), "finalizado_em": None if pendentes else repo.finalizado_em(l.uuid),
     }
 
@@ -361,12 +363,14 @@ def listar_documentos(
     data_de: date | None = None,
     data_ate: date | None = None,
     campo_data: str = Query("documento", pattern="^(documento|gravacao)$"),
+    obrigatoria: bool = False,
     pagina: int = Query(1, ge=1),
     tamanho: int = Query(25, ge=1, le=200),
 ):
     """Filtros combinados com E. `procedimento`/`municipio`: valor exato (opções em /filtros);
     `requerente`: trecho do nome, sem diferenciar maiúsculas nem acentos; `data_de`/`data_ate`: inclusivos,
-    sobre a data do documento ou a data de gravação (dia no fuso do Piauí)."""
+    sobre a data do documento ou a data de gravação (dia no fuso do Piauí); `obrigatoria`: só as conferências
+    obrigatórias ainda não feitas (leitura abaixo de LIMIAR_CONFERENCIA_OBRIGATORIA)."""
     testes = []
     ts_de = ts_ate = None
     if requerente and requerente.strip():
@@ -390,7 +394,8 @@ def listar_documentos(
     total, itens = repositorio().consultar(
         status=status.split(",") if status else None, procedimento=procedimento or None,
         municipio=municipio or None, ts_de=ts_de, ts_ate=ts_ate,
-        filtro=(lambda r: all(t(r) for t in testes)) if testes else None, pagina=pagina, tamanho=tamanho,
+        filtro=(lambda r: all(t(r) for t in testes)) if testes else None, obrigatoria=obrigatoria, pagina=pagina,
+        tamanho=tamanho,
     )
     return {"total": total, "itens": [publico(r) for r in itens]}
 
@@ -403,16 +408,19 @@ def opcoes_de_filtro():
 
 
 @app.get("/revisao", dependencies=Protegido)
-def fila_revisao(pagina: int = Query(1, ge=1), tamanho: int = Query(500, ge=1, le=2000)):
-    """Mais antigos primeiro."""
-    total, itens = repositorio().consultar(status=["revisao"], crescente=True, pagina=pagina, tamanho=tamanho)
+def fila_revisao(obrigatoria: bool = False, pagina: int = Query(1, ge=1), tamanho: int = Query(500, ge=1, le=2000)):
+    """Mais antigos primeiro. `obrigatoria`: só as conferências obrigatórias ainda não feitas."""
+    total, itens = repositorio().consultar(status=["revisao", "extraido"] if obrigatoria else ["revisao"],
+                                           obrigatoria=obrigatoria, crescente=True, pagina=pagina, tamanho=tamanho)
     return {"total": total, "itens": [publico(r) for r in itens]}
 
 
 @app.get("/estatisticas", dependencies=Protegido)
 def estatisticas():
     repo = repositorio()
-    return {"por_status": repo.por_status(), "lotes": repo.total_lotes()}
+    return {"por_status": repo.por_status(), "lotes": repo.total_lotes(),
+            "conferencia_obrigatoria": repo.total_obrigatoria(),
+            "limiar_conferencia_obrigatoria": config().limiar_conferencia_obrigatoria}
 
 
 @app.get("/documentos/{uid}", dependencies=Protegido)
@@ -457,6 +465,8 @@ def reprocessar(uid: str):
             raise HTTPException(409, "documento já validado; reprocessar descartaria a validação")
         if d.status == "processando":
             raise HTTPException(409, "documento já está em processamento")
+        if d.status == "desconsiderado":
+            raise HTTPException(409, "documento desconsiderado; reconsidere antes de ler de novo")
         d.status = "recebido"
         d = repo.salvar(d)
     enfileirar([d.uuid])
@@ -476,6 +486,8 @@ class Correcoes(BaseModel):
 def _editavel(d: Documento) -> None:
     if d.status in ("recebido", "processando"):
         raise HTTPException(409, "documento está sendo lido de novo; aguarde o fim da leitura")
+    if d.status == "desconsiderado":
+        raise HTTPException(409, "documento desconsiderado; reconsidere para editar ou validar")
     if d.requerimento is None:
         raise HTTPException(409, "documento ainda não foi processado")
 
@@ -525,8 +537,43 @@ def validar_documento(uid: str, corpo: Validacao | None = None, usuario_id: int 
     return detalhe_documento(d)
 
 
+class Desconsideracao(BaseModel):
+    motivo: str
+
+
+@app.post("/documentos/{uid}/desconsiderar", dependencies=Protegido)
+def desconsiderar(uid: str, corpo: Desconsideracao, usuario_id: int | None = Depends(usuario)):
+    """Descarta o documento na revisão (não é requerimento, repetido, ilegível): não é validado, sai das filas e
+    não vai ao SIGA. `motivo` é obrigatório e fica no histórico; `/reconsiderar` desfaz."""
+    u = _doc(uid).uuid
+    repo = repositorio()
+    with repo.travar(u):
+        d = repo.obter(u)
+        try:
+            P.desconsiderar_documento(d, usuario_id, corpo.motivo)
+        except (PermissionError, ValueError) as e:
+            raise HTTPException(409, str(e))
+        d = repo.salvar(d)
+    return detalhe_documento(d)
+
+
+@app.post("/documentos/{uid}/reconsiderar", dependencies=Protegido)
+def reconsiderar(uid: str, usuario_id: int | None = Depends(usuario)):
+    u = _doc(uid).uuid
+    repo = repositorio()
+    with repo.travar(u):
+        d = repo.obter(u)
+        try:
+            P.reconsiderar_documento(d, usuario_id)
+        except ValueError as e:
+            raise HTTPException(409, str(e))
+        d = repo.salvar(d)
+    return detalhe_documento(d)
+
+
 # nomes que a tela já conhece para as entradas do histórico que não são correção de um campo
-CAMPO_DO_TIPO = {"validacao_com_pendencias": "__validacao_com_pendencias__", "reprocessamento": "__reprocessamento__"}
+CAMPO_DO_TIPO = {"validacao_com_pendencias": "__validacao_com_pendencias__", "reprocessamento": "__reprocessamento__",
+                 "desconsideracao": "__desconsideracao__", "reconsideracao": "__reconsideracao__"}
 
 
 def _revisao(r: Revisao) -> dict[str, Any]:

@@ -51,11 +51,18 @@ export default function TabelaDocumentos({
               <td className="opcional">{d.municipio ?? "—"}</td>
               <td>
                 <Status valor={d.status} />
+                {d.conferencia_obrigatoria && d.status !== "validado" && d.status !== "desconsiderado" && (
+                  <span className="selo selo--alerta" title="Leitura com confiança baixa: só é validado depois de conferido na tela">
+                    Conferência obrigatória
+                  </span>
+                )}
               </td>
               <td className="num opcional">{pct(d.confianca_geral)}</td>
               <td className="opcional" style={{ maxWidth: "34ch" }}>
                 {d.status === "erro" ? (
                   <span className="mensagem--erro">{d.erro}</span>
+                ) : d.status === "desconsiderado" ? (
+                  <span className="discreto">Nada: não será validado nem enviado ao SIGA</span>
                 ) : d.pendencias.length ? (
                   <>
                     {d.pendencias[0]}

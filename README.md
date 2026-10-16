@@ -178,12 +178,12 @@ flowchart TD
     O4 --> O5["OCR · Tesseract"]
     O5 --> QR["Procura QR code<br/>(liga ao processo do SIGA)"]
     SIG --> SEG
-    QR --> SEG["Separa por página que começa com 'REQUERIMENTO'<br/>(um PDF com vários vira várias partes)"]
-    SEG --> PA["Parser por âncoras<br/>'inscrito sob o CPF/CNPJ', 'vem requerer … para …',<br/>'localizado no município', 'latitude … e longitude',<br/>seções das finalidades, tabela de irrigação, rodapé"]
+    QR --> SEG["Separa por página que começa com 'REQUERIMENTO'<br/>e traz o parágrafo do requerente<br/>(um PDF com vários vira várias partes;<br/>página que só repete o título continua a anterior)"]
+    SEG --> PA["Parser por âncoras<br/>'inscrito sob o CPF/CNPJ', 'vem requerer … para …',<br/>'localizado no município', 'latitude … e longitude',<br/>seções das finalidades, tabela de irrigação, rodapé;<br/>parágrafo fora do modelo é lido por partes"]
     PA --> RL["Segunda leitura dos números<br/>CPF, coordenadas, áreas e data num recorte em cinza"]
     RL --> NO["Normalização<br/>máscara do CPF, graus decimais,<br/>sinal negativo do Piauí, datas"]
     NO --> VA["Validação com o SIGA<br/>pessoa pelo CPF · município do PI ·<br/>procedimento · intervenção · finalidade ·<br/>ponto dentro do polígono do município"]
-    VA --> CF["Confiança por campo<br/>abaixo de LIMIAR_CONFIANCA (80) = pendência"]
+    VA --> CF["Confiança por campo<br/>abaixo de LIMIAR_CONFIANCA (80) = pendência;<br/>confiança geral abaixo de<br/>LIMIAR_CONFERENCIA_OBRIGATORIA (50) =<br/>conferência obrigatória"]
     CF --> GR["Grava o JSON do documento<br/>e a imagem de cada página no bucket;<br/>atualiza o índice no Redis"]
 ```
 
@@ -241,6 +241,10 @@ stateDiagram-v2
     revisao --> extraido: correção resolve as pendências
     extraido --> validado: validar
     revisao --> validado: validar com justificativa
+    revisao --> desconsiderado: desconsiderar (motivo)
+    extraido --> desconsiderado: desconsiderar (motivo)
+    erro --> desconsiderado: desconsiderar (motivo)
+    desconsiderado --> revisao: reconsiderar
     extraido --> recebido: ler de novo
     revisao --> recebido: ler de novo
     validado --> extraido: correção depois de validado
@@ -257,6 +261,7 @@ stateDiagram-v2
 | `validado` | conferido; vai para o SIGA | Validado |
 | `erro` | não foi possível ler o arquivo | Erro |
 | `dividido` | arquivo com vários requerimentos; cada parte é um documento | Dividido |
+| `desconsiderado` | descartado na revisão (não é requerimento, repetido, ilegível); não é validado nem vai ao SIGA | Desconsiderado |
 
 ### Regras do fluxo
 
@@ -269,6 +274,20 @@ stateDiagram-v2
   mantêm a situação que tinham, e um arquivo que dê erro de leitura é validado quando for lido de novo.
   Depois de validado, o documento segue as regras de sempre: uma correção desfaz a validação e ele volta
   para a conferência.
+- **Na conferência: validar, salvar ou descartar.** *Salvar correções* grava sem validar; *Validar* com
+  correções ainda não salvas grava e valida de uma vez (pedindo justificativa se sobrarem pendências);
+  *Descartar alterações* volta aos valores gravados sem gravar nada; *Desconsiderar documento* tira o
+  documento das filas sem validá-lo (com motivo no histórico), e *Reconsiderar* desfaz.
+- **Conferência obrigatória.** Leitura com confiança geral abaixo de `LIMIAR_CONFERENCIA_OBRIGATORIA` (50%)
+  nunca é validada sozinha, nem quando enviada como já conferida: o documento fica em `revisao`, com
+  `conferencia_obrigatoria = true` e um aviso, e aparece na aba *Conferência obrigatória* da Revisão (com
+  contador no menu e alerta no lote) até uma pessoa validá-lo na tela de conferência. Correções não tiram a
+  marca; uma nova leitura a recalcula.
+- **Parágrafo fora do modelo.** Quando o parágrafo do requerente não segue o texto do formulário (ordem
+  trocada, "inscrita no CNPJ sob nº", "Localização do Poço:", "Zona Rural de X – PI", coordenadas sem a
+  palavra "Longitude"), o parser lê cada trecho pela sua âncora e casa o procedimento e a intervenção com as
+  listas do SIGA. Valor deduzido sem rótulo (município pelo "– PI", localidade sem a palavra "localidade")
+  entra com confiança menor, para ser conferido.
 - **Ler de novo não perde a revisão.** Depois da nova leitura (`reprocessar`), as correções manuais são
   reaplicadas. Listas corrigidas (finalidades, irrigação, itens de uma finalidade) voltam inteiras como o
   revisor deixou. Documento validado não pode ser lido de novo (409).
@@ -539,6 +558,8 @@ de propósito, para passar pelas regras do próprio Django.
 | `GET /documentos/{uuid}/arquivo`, `/paginas/{n}/imagem` | original e página corrigida |
 | `PATCH /documentos/{uuid}/correcoes` | corrige campos, finalidades e tabela de irrigação; revalida e audita. Com `versao` (de `requerimento.versao`), 409 se outro gravou antes |
 | `POST /documentos/{uuid}/validar` | valida (`forcar` + `justificativa` quando há pendências; `versao` como nas correções) |
+| `POST /documentos/{uuid}/desconsiderar` | descarta o documento na revisão (`motivo` obrigatório, vai para o histórico); bloqueia correção, validação e releitura |
+| `POST /documentos/{uuid}/reconsiderar` | devolve um documento desconsiderado à revisão |
 | `POST /documentos/{uuid}/reprocessar` | lê de novo e reaplica as correções manuais (409 se já validado) |
 | `GET /documentos/{uuid}/revisoes` | histórico de correções |
 | `GET /siga/requerimentos.json` | JSON padrão do SIGA com todos os validados, gerado na hora (o botão "JSON consolidado") |

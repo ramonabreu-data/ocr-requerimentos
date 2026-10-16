@@ -67,7 +67,14 @@ export default function Lotes() {
                         {l.processados} de {l.total} lidos
                       </div>
                     </td>
-                    <td className="num">{l.em_revisao}</td>
+                    <td className="num">
+                      {l.em_revisao}
+                      {l.conferencia_obrigatoria > 0 && (
+                        <span className="selo selo--alerta" style={{ marginLeft: "auto" }}>
+                          {l.conferencia_obrigatoria} com conferência obrigatória
+                        </span>
+                      )}
+                    </td>
                     <td className="num opcional">{l.com_erro}</td>
                     <td>
                       <Status valor={l.status} />

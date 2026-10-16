@@ -58,6 +58,8 @@ class Config(BaseSettings):
     motor_ocr: str = "tesseract"  # tesseract | paddle
     idioma_tesseract: str = "por"
     limiar_confianca: float = 80.0
+    # leitura com confiança geral abaixo disso nunca é validada sozinha, nem enviada como já conferida
+    limiar_conferencia_obrigatoria: float = 50.0
     remover_tinta_azul: bool = True
     confiar_texto_scanner: bool = False
     conferir_numeros: bool = True  # segunda leitura de CPF, coordenadas, áreas e datas

@@ -20,7 +20,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SCHEMA_VERSAO = 1
 
-StatusDocumento = Literal["recebido", "processando", "extraido", "revisao", "validado", "erro", "dividido"]
+# desconsiderado: descartado na revisão (não é requerimento, repetido, ilegível): não é validado nem vai ao SIGA
+StatusDocumento = Literal["recebido", "processando", "extraido", "revisao", "validado", "erro", "dividido",
+                          "desconsiderado"]
 STATUS_DOCUMENTO: tuple[str, ...] = StatusDocumento.__args__  # type: ignore[attr-defined]
 Confianca = Annotated[float, Field(ge=0, le=100)]
 # número de registro: REQ-2026-000123; a parte 2 de um arquivo com vários requerimentos: REQ-2026-000123-2
@@ -179,11 +181,13 @@ class Revisao(Modelo):
     - correcao: o revisor mudou `campo` de `valor_anterior` para `valor_novo`;
     - validacao_com_pendencias: validado mesmo com pendências; `valor_anterior` = pendências na hora,
       `valor_novo` = justificativa;
-    - reprocessamento: o documento foi lido de novo e as correções manuais foram reaplicadas."""
+    - reprocessamento: o documento foi lido de novo e as correções manuais foram reaplicadas;
+    - desconsideracao: descartado na revisão; `valor_anterior` = situação que tinha, `valor_novo` = motivo;
+    - reconsideracao: voltou para a revisão depois de desconsiderado; `valor_novo` = situação de volta."""
 
     em: datetime = Field(default_factory=agora)
     usuario_id: int | None = None
-    tipo: Literal["correcao", "validacao_com_pendencias", "reprocessamento"]
+    tipo: Literal["correcao", "validacao_com_pendencias", "reprocessamento", "desconsideracao", "reconsideracao"]
     campo: str | None = None
     valor_anterior: str | None = None
     valor_novo: str | None = None
@@ -258,6 +262,11 @@ class Documento(Modelo):
     validar_ao_ler: bool = Field(
         False, description="Enviado como já conferido: é validado assim que a leitura terminar, sem passar pela "
                            "conferência. Volta a false depois de validado (uma releitura posterior não valida de novo).",
+    )
+    conferencia_obrigatoria: bool = Field(
+        False, description="A última leitura ficou com confiança geral abaixo de LIMIAR_CONFERENCIA_OBRIGATORIA: o "
+                           "documento não é validado automaticamente (nem enviado como já conferido) e precisa ser "
+                           "conferido na tela antes de validar. Recalculado a cada leitura.",
     )
     leitura: Leitura = Field(default_factory=Leitura)
     assinatura: Assinatura = Field(default_factory=Assinatura)

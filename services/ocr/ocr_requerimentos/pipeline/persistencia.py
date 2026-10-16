@@ -247,7 +247,8 @@ def gravar_resultado(
     )
     doc.requerimento = req
     if doc.status != "validado":
-        doc.status = r.status
+        # conferência obrigatória: segue na revisão até uma pessoa validar, mesmo depois de corrigido
+        doc.status = "revisao" if doc.conferencia_obrigatoria else r.status
     return req
 
 
@@ -296,7 +297,9 @@ def _gravar_segmento(doc: Documento, seg: Segmento, res: ResultadoArquivo, repo:
         ))
         textos.append(TextoPagina(numero=k, texto=p.texto, palavras=[{**w, "p": k} for w in palavras_json(p)]))
     repo.salvar_paginas(PaginasDocumento(documento_uuid=doc.uuid, paginas=textos))
+    doc.conferencia_obrigatoria = False  # recalculada para a leitura nova
     gravar_resultado(doc, seg.resultado)
+    marcar_conferencia_obrigatoria(doc)
     # páginas do segmento renumeradas a partir de 1 no documento filho
     offset = seg.paginas[0].numero - 1
     if offset and doc.requerimento:
@@ -599,14 +602,61 @@ def validar_documento(doc: Documento, usuario_id: int | None, forcar: bool = Fal
 JUSTIFICATIVA_ENVIO = "Enviado como já conferido: validado automaticamente ao fim da leitura."
 
 
+def desconsiderar_documento(doc: Documento, usuario_id: int | None, motivo: str | None) -> None:
+    """Descarta o documento na revisão: não é validado, sai das filas e não vai ao SIGA. O motivo fica no
+    histórico, e `reconsiderar_documento` desfaz. Em memória, como `validar_documento`."""
+    if not (motivo or "").strip():
+        raise ValueError("informe o motivo para desconsiderar o documento")
+    if doc.status == "validado":
+        raise PermissionError("documento já validado; não pode ser desconsiderado")
+    if doc.status not in ("extraido", "revisao", "erro"):
+        raise ValueError(f"documento em situação '{doc.status}' não pode ser desconsiderado")
+    doc.historico_de_revisoes.append(Revisao(
+        tipo="desconsideracao", valor_anterior=doc.status, valor_novo=motivo.strip(), usuario_id=usuario_id,
+    ))
+    doc.status = "desconsiderado"
+    doc.validar_ao_ler = False
+
+
+def reconsiderar_documento(doc: Documento, usuario_id: int | None) -> None:
+    """Devolve um documento desconsiderado à revisão, com a situação que a leitura dá (ou ao erro de leitura)."""
+    if doc.status != "desconsiderado":
+        raise ValueError("documento não está desconsiderado")
+    req = doc.requerimento
+    if req is None:
+        doc.status = "erro"
+    else:
+        doc.status = "revisao" if req.pendencias or doc.conferencia_obrigatoria else "extraido"
+    doc.historico_de_revisoes.append(Revisao(tipo="reconsideracao", valor_novo=doc.status, usuario_id=usuario_id))
+
+
+def marcar_conferencia_obrigatoria(doc: Documento) -> bool:
+    """Leitura com confiança geral abaixo de LIMIAR_CONFERENCIA_OBRIGATORIA: o documento vai para a revisão
+    (mesmo sem pendências) e só sai de lá validado por uma pessoa na conferência. Vale para cada leitura nova;
+    as correções não mudam a marca."""
+    req = doc.requerimento
+    doc.conferencia_obrigatoria = req is not None and (req.confianca_geral or 0) < config().limiar_conferencia_obrigatoria
+    if doc.conferencia_obrigatoria and doc.status == "extraido":
+        doc.status = "revisao"
+    return doc.conferencia_obrigatoria
+
+
 def validar_no_envio(doc: Documento) -> bool:
     """Documento enviado como já conferido (`validar_ao_ler`): valida assim que a leitura termina, sem passar
     pela conferência, em nome de quem enviou. Pendências da leitura não impedem: ficam no histórico com a
-    justificativa automática. Em memória, como `validar_documento`; devolve se validou."""
+    justificativa automática. Leitura com conferência obrigatória não é validada: fica na revisão, com um aviso.
+    Em memória, como `validar_documento`; devolve se validou."""
     if not doc.validar_ao_ler or doc.requerimento is None or doc.status not in ("extraido", "revisao"):
         return False
-    validar_documento(doc, doc.criado_por_id, forcar=True, justificativa=JUSTIFICATIVA_ENVIO, modo="envio")
     doc.validar_ao_ler = False
+    if doc.conferencia_obrigatoria:
+        doc.requerimento.avisos.append(
+            f"Enviado como já conferido, mas a leitura ficou com {doc.requerimento.confianca_geral or 0:.0f}% de "
+            f"confiança (abaixo de {config().limiar_conferencia_obrigatoria:.0f}%): conferência obrigatória na tela "
+            "antes de validar."
+        )
+        return False
+    validar_documento(doc, doc.criado_por_id, forcar=True, justificativa=JUSTIFICATIVA_ENVIO, modo="envio")
     return True
 
 

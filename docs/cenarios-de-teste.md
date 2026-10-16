@@ -17,7 +17,7 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-04 | CNPJ válido com máscara | normalizado | válido, tipo J |
 | CT-05 | Latitude `-5°02'91.06"` (do PDF real) | convertida | erro "segundos fora do intervalo" |
 | CT-06 | Longitude `-42°42'32.38"` | convertida | -42,7089944 sem erros |
-| CT-07 | Coordenada sem sinal (`5°02'41"`) | convertida | recebe sinal negativo e aviso "assumido Sul/Oeste" |
+| CT-07 | Coordenada sem sinal (`5°02'41"`) | convertida | recebe sinal negativo e aviso "assumido Sul/Oeste", sem baixar a confiança (o Piauí é todo Sul/Oeste; CT-84) |
 | CT-08 | Coordenada com hemisfério (`5°02'41,5" S`) e grau lido como `o` | convertida | -5,0448611 |
 | CT-09 | Áreas `10`, `2,5`, `1.234,5`, `1O` | normalizadas | 10, 2,5, 1234,5 e 10 |
 | CT-10 | Município `ALT0S` (zero no lugar do O) | comparado com a lista do PI | associado a Altos |
@@ -46,6 +46,12 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-32 | Arquivo que não é PDF nem imagem | lido | erro "formato não suportado" |
 | CT-33 | Linha de tabela com área decimal `2,5` e cultura de duas palavras | extraída | sistema, área e cultura separados corretamente |
 | CT-34 | Duas finalidades (Irrigação + Abastecimento Humano) | extraído | as duas finalidades reconhecidas e a tabela ligada à Irrigação |
+| CT-120 | Parágrafo com "na localidade X, zona rural do município de Y, Latitude …S e Longitude: …O" | lido por partes | nome sem o artigo, CNPJ, procedimento, intervenção, município, localidade e coordenadas; aviso "lidos por partes" |
+| CT-121 | Carta "inscrita no CNPJ sob nº", sede e poço em municípios diferentes, "Localização do Poço:" | lido por partes | município do poço (pelo "– PI", confiança 85), localidade "Fazenda …, S/N", coordenadas com ′ ″ |
+| CT-122 | Nome quebrado em duas linhas, "no município X, na BR …", coordenada sem a palavra "Longitude" | lido por partes | nome inteiro; localidade deduzida com confiança 75 (vai para a conferência); longitude lida |
+| CT-123 | PDF de 2 páginas em que a segunda só repete o título "REQUERIMENTO" | dividido? | não: um requerimento só, com as 2 páginas |
+| CT-124 | Finalidades antes da descrição; "Finalidade do Uso - Consumo Animal" na mesma linha | extraído | finalidade Criação Animal reconhecida, descrição e data lidas |
+| CT-125 | "Betânia", "CAPITÃO GERVÁSIO", "S Ã O R A I M U N D O …", "São João" contra a lista de municípios | correspondência | nome incompleto que só um item completa (85%); letras espaçadas comparadas sem espaço; prefixo ambíguo não escolhe |
 
 ## 3. API, gravação em JSON e lotes (integração com o SIGA em PostgreSQL + PostGIS, só leitura)
 
@@ -68,6 +74,8 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-54 | Reprocessar documento validado | `POST /reprocessar` | 409 |
 | CT-55 | PDF real (com pendência) enviado como já conferido | `POST /documentos` com `validar_ao_ler` | validado ao fim da leitura em nome de quem enviou, `modo` `envio` no detalhe e no JSON do SIGA, justificativa automática no histórico; sem a opção, continua indo para a conferência |
 | CT-56 | Lote já conferido com PDF de 2 requerimentos e um arquivo já enviado | `POST /lotes` com `validar_ao_ler` | as 2 partes validadas; o duplicado mantém a situação que tinha |
+| CT-57 | Lote já conferido com um PDF ilegível para o parser e o PDF real | `POST /lotes` com `validar_ao_ler` | o ilegível (abaixo de 50%) fica em `revisao` com `conferencia_obrigatoria` e aviso; o real é validado; contagem no lote, em `/estatisticas`, `/revisao?obrigatoria=true` e `/documentos?obrigatoria=true`; validado na tela, sai da contagem |
+| CT-58 | Desconsiderar o PDF real pela API e depois reconsiderar | `POST /desconsiderar` / `/reconsiderar` | sem motivo: 409; com motivo: `desconsiderado`, sai da revisão e do consolidado do SIGA, histórico com motivo e usuário; validar, corrigir e ler de novo dão 409; reconsiderado volta para `revisao`; reconsiderar de novo: 409 |
 | CT-90 | Documento com latitude e irrigação corrigidas | `POST /reprocessar` | correções reaplicadas sobre a nova leitura; auditoria só registra `__reprocessamento__` |
 | CT-91 | Documento sem correções | `POST /reprocessar` | nenhuma entrada no histórico |
 | CT-92 | Mesmo arquivo em dois lotes | `POST /lotes` duas vezes | os dois lotes contam e exportam o documento; validar atualiza os dois |
@@ -94,6 +102,8 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-109 | Carga sintética (450 documentos, 3 lotes) | `carga_sintetica` | totais e contadores coerentes |
 | CT-110 | Validados e pendentes com correções | `acuracia` | só os validados contam; campos incluídos na revisão contam como não lidos; faixas de confiança corretas |
 | CT-116 | Documento lido, enviado como já conferido, com pendência | `validar_no_envio` | validado com `modo` `envio`, em nome de quem enviou, com a justificativa automática; a opção é consumida; sem a opção ou com erro de leitura, nada muda |
+| CT-119 | Leitura com 32,5% (enviada como já conferida) e outra com 50% | `marcar_conferencia_obrigatoria` / `validar_no_envio` | a de 32,5% vai para `revisao`, não é validada, recebe o aviso e entra no índice da conferência obrigatória (também por lote); a de 50% não; validada na tela, sai do índice; refazer o índice dá o mesmo resultado |
+| CT-126 | Documento em conferência obrigatória desconsiderado e reconsiderado; validado; sem leitura | `desconsiderar_documento` / `reconsiderar_documento` | motivo obrigatório; sai da revisão e da conferência obrigatória, o lote conta e termina; volta para `revisao` e para a contagem; validado não pode; sem leitura volta para `erro` |
 | CT-117 | Três arquivos registrados, um repetido, uma parte e o Redis perdido | `registrar_documento` / `reconstruir_indice` | `REQ-AAAA-000001`, `-000002`; o repetido mantém o número; a parte recebe `-1`; achado pela busca; depois de refazer o índice a sequência continua em `-000003`; formato fora do padrão recusado pelo contrato |
 | CT-118 | Documentos gravados antes da numeração (um de 31/12 à noite, um arquivo dividido e sua parte) | `ferramentas numerar` | numerados pela ordem e pelo ano no fuso do Piauí; a parte recebe o número do arquivo com `-1`; rodar de novo não muda nada |
 
@@ -128,6 +138,8 @@ sintéticos gerados no mesmo layout por `tests/fabrica.py`, que também simula d
 | CT-77 | Navegação só por teclado | todos os controles alcançáveis e com foco visível |
 | CT-78 | Escolher arquivos e marcar "Já estão conferidos: só armazenar" | o botão vira "Enviar e validar"/"Criar lote e validar"; ao fim da leitura, os documentos aparecem como Validado e a conferência diz "Validado no envio" |
 | CT-79 | Abrir um documento e clicar na aba JSON | árvore no padrão do SIGA; "Completo" troca para o JSON gravado; "Baixar JSON" baixa o formato escolhido; com correções não salvas, o download fica bloqueado; as edições da conferência continuam lá ao voltar |
+| CT-80 | Enviar como já conferido um lote com um requerimento lido abaixo de 50% | menu Revisão com contador vermelho; o lote avisa e leva à aba "Conferência obrigatória"; o documento tem o selo na lista e o alerta no topo da conferência; validado na tela, some da aba |
+| CT-81 | Na conferência, corrigir um campo e clicar em "Salvar e validar"; corrigir outro e clicar em "Descartar alterações"; desconsiderar com motivo e reconsiderar | grava e valida num clique (pede justificativa se sobrar pendência); o descarte volta aos valores gravados sem gravar; desconsiderado mostra o aviso e o motivo e trava o formulário; sair da página com alteração não salva pede confirmação |
 
 ## Resultado da última execução
 

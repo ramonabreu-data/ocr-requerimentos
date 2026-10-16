@@ -5,7 +5,9 @@ export type StatusDocumento =
   | "revisao"
   | "validado"
   | "erro"
-  | "dividido";
+  | "dividido"
+  /** descartado na revisão (não é requerimento, repetido, ilegível): não é validado nem vai ao SIGA */
+  | "desconsiderado";
 
 export type BBox = [number, number, number, number];
 
@@ -30,6 +32,8 @@ export interface DocumentoResumo {
   validado_em: string | null;
   confianca_geral: number | null;
   pendencias: string[];
+  /** lido com confiança abaixo do limiar: nunca é validado sozinho, nem enviado como já conferido */
+  conferencia_obrigatoria: boolean;
   created_at: string;
   updated_at: string;
   duracao_ms: number | null;
@@ -136,6 +140,8 @@ export interface DocumentoDetalhe extends DocumentoResumo {
   processo_id: number | null;
   /** enviado como já conferido e ainda não validado (a validação acontece ao fim da leitura) */
   validar_ao_ler: boolean;
+  /** confiança abaixo do limiar: precisa passar pela conferência na tela antes de validar */
+  conferencia_obrigatoria: boolean;
   paginas_lidas: PaginaLida[];
   requerimento: Requerimento | null;
 }
@@ -150,6 +156,9 @@ export interface LoteResumo {
   em_revisao: number;
   validados: number;
   com_erro: number;
+  desconsiderados: number;
+  /** documentos do lote abaixo do limiar de confiança que ainda aguardam a conferência obrigatória */
+  conferencia_obrigatoria: number;
   created_at: string;
   finalizado_em: string | null;
 }

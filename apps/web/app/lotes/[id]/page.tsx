@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import Progresso from "@/components/Progresso";
@@ -14,6 +15,7 @@ const FILTROS = [
   { valor: "extraido", rotulo: "Prontos para validar" },
   { valor: "validado", rotulo: "Validados" },
   { valor: "erro", rotulo: "Com erro" },
+  { valor: "desconsiderado", rotulo: "Desconsiderados" },
 ];
 
 export default function Lote() {
@@ -76,6 +78,15 @@ export default function Lote() {
         </div>
         <Progresso lote={lote} legenda />
       </div>
+
+      {lote.conferencia_obrigatoria > 0 && (
+        <div className="aviso aviso--erro" style={{ marginTop: "1rem" }}>
+          {lote.conferencia_obrigatoria === 1
+            ? "1 requerimento deste lote ficou abaixo de 50% de confiança e precisa de conferência obrigatória."
+            : `${lote.conferencia_obrigatoria} requerimentos deste lote ficaram abaixo de 50% de confiança e precisam de conferência obrigatória.`}{" "}
+          <Link href="/revisao?aba=obrigatoria">Abrir a conferência obrigatória</Link>
+        </div>
+      )}
 
       {aviso && (
         <div className="aviso aviso--ok" role="status" style={{ marginTop: "1rem" }}>

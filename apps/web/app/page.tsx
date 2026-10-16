@@ -194,7 +194,8 @@ export default function Envio() {
                   <strong>Já estão conferidos: só armazenar</strong>
                   <span className="dica">
                     Os dados lidos são validados e armazenados direto, sem conferência. Pontos que a leitura apontar
-                    ficam registrados no histórico de cada requerimento.
+                    ficam registrados no histórico de cada requerimento. Requerimentos lidos com confiança abaixo de
+                    50% não são validados automaticamente: vão para “Conferência obrigatória”, na Revisão.
                   </span>
                 </span>
               </label>

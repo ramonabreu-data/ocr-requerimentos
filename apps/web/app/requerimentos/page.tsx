@@ -13,6 +13,8 @@ const FILTROS = [
   { valor: "extraido,revisao,validado", rotulo: "Todos" },
   { valor: "validado", rotulo: "Validados" },
   { valor: "extraido,revisao", rotulo: "Aguardando conferência" },
+  // fora de "Todos": desconsiderado não é requerimento a conferir nem a enviar
+  { valor: "desconsiderado", rotulo: "Desconsiderados" },
 ] as const;
 
 /** Estado da lista; os nomes são os mesmos dos parâmetros da API e do endereço da página. */

@@ -25,13 +25,18 @@ function trilha(caminho: string): { rotulo: string; href?: string }[] {
 export default function Navegacao({ logo }: { logo: string | null }) {
   const caminho = usePathname();
   const [emRevisao, setEmRevisao] = useState<number | null>(null);
+  const [obrigatorias, setObrigatorias] = useState(0);
 
   useEffect(() => {
     let ativo = true;
     const buscar = () =>
       api
         .estatisticas()
-        .then((e) => ativo && setEmRevisao(e.por_status.revisao ?? 0))
+        .then((e) => {
+          if (!ativo) return;
+          setEmRevisao(e.por_status.revisao ?? 0);
+          setObrigatorias(e.conferencia_obrigatoria ?? 0);
+        })
         .catch(() => undefined);
     buscar();
     const t = setInterval(buscar, 30000);
@@ -76,6 +81,17 @@ export default function Navegacao({ logo }: { logo: string | null }) {
                 {l.href === "/revisao" && emRevisao ? (
                   <span className="contador" aria-label={`${emRevisao} documentos aguardando revisão`}>
                     {emRevisao}
+                  </span>
+                ) : null}
+                {/* lidos abaixo do limiar de confiança: só saem da fila conferidos na tela */}
+                {l.href === "/revisao" && obrigatorias > 0 ? (
+                  <span className="contador contador--alerta" title="Conferência obrigatória">
+                    <span aria-hidden>{obrigatorias}</span>
+                    <span className="pular">
+                      {obrigatorias === 1
+                        ? "1 documento com conferência obrigatória"
+                        : `${obrigatorias} documentos com conferência obrigatória`}
+                    </span>
                   </span>
                 ) : null}
               </Link>
